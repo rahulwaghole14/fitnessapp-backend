@@ -29,3 +29,13 @@ class ForgotPasswordResetSchema(BaseModel):
 class LoginSchema(BaseModel):
     email: EmailStr
     password: str
+
+class ProfileSetupSchema(BaseModel):
+    email:str
+    gender:str
+    age:str
+    height:float
+    weight:float
+    bmi:float
+    weight_goal:float
+    activity_level:str

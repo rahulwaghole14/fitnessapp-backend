@@ -1,3 +1,5 @@
+from http.client import responses
+
 from flask import Flask, render_template, request, redirect, url_for, flash
 import requests
 
@@ -337,6 +339,48 @@ def do_login():
     except requests.exceptions.RequestException:
         flash("Something went wrong")
         return redirect(url_for("login_page"))
+
+#update the user profile
+@app.route("/update-profile", methods=["POST"])
+def update():
+    data = {
+        "email": request.form.get("email"),
+        "gender": request.form.get("gender"),
+        "age": request.form.get("age"),
+        "weight": request.form.get("weight"),
+        "height": request.form.get("height"),
+        "bmi": request.form.get("bmi"),
+        "weight_goal": request.form.get("weight_goal"),
+        "activity_level": request.form.get("activity_level"),
+    }
+
+    try:
+        response = request.put(
+            f"{FASTAPI_URL}/setup-profile",
+            json=data,
+            timeout=5
+        )
+
+        if "application/json" in response.headers.get("Content-Type", ""):
+            result = response.json()
+        else:
+            flash("Invalid response from authentication service")
+            return redirect(url_for("login_page"))
+
+
+# ❌ Error from FastAPI
+        if response.status_code != 200:
+            flash(result.get("detail", "Registration failed"))
+            return redirect(url_for("login_page"))
+
+# ✅ Success → go to OTP verification
+        flash(result.get("message", "OTP sent to your email"))
+        return redirect(url_for("dashboard", email=data["email"]))
+
+    except requests.exceptions.Timeout:
+        flash("FastAPI service timeout")
+        return redirect(url_for("login_page"))
+
 
 @app.route("/dashboard")
 def dashboard():

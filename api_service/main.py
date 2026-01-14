@@ -245,3 +245,60 @@ def login(user: LoginSchema,
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     return {"message": "Login successful", "username": db_user.username}
+
+@app.put("/setup-profile")
+def update_profile(data: ProfileSetupSchema, db: Session = Depends(get_db)):
+
+    # 1️⃣ Find user by email
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 2️⃣ Update fields
+    user.gender = data.gender
+    user.age = data.age
+    user.height = data.height
+    user.weight = data.weight
+    user.bmi = data.bmi
+    user.weight_goal = data.weight_goal
+    user.activity_level = data.activity_level
+
+    # 3️⃣ Save changes
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "message": "Profile updated successfully",
+        "email": user.email,
+        "gender": user.gender,
+        "age": user.age,
+        "weight": user.weight,
+        "height": user.height,
+        "bmi": user.bmi,
+        "weight_goal": user.weight_goal,
+        "activity_level": user.activity_level,
+    }
+
+@app.get("/get-profile/{email}")
+def get_profile(email: str, db: Session = Depends(get_db)):
+
+    # 1️⃣ Find user by email
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 2️⃣ Return user data
+    return {
+        "message":"profile Get successfully",
+        "email": user.email,
+        "gender": user.gender,
+        "age": user.age,
+        "height": user.height,
+        "weight": user.weight,
+        "bmi": user.bmi,
+        "weight_goal": user.weight_goal,
+        "activity_level": user.activity_level
+    }
+
