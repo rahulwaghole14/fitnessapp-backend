@@ -44,7 +44,6 @@ def get_db():
 #         send_otp_email(data.email, otp)
 #     except Exception as e:
 #         print(f"Email sending failed: {e}")
-#         # Don't fail registration if email fails, user can still verify with printed OTP
 #
 #     return {"message": "OTP sent"}
 #
@@ -77,13 +76,7 @@ def get_db():
 # # RESEND OTP
 # @app.post("/resend-otp")
 # def resend_otp(data: ResendOTPSchema, db: Session = Depends(get_db)):
-#     """
-#     Resend OTP functionality:
-#     - Generate new OTP for existing user
-#     - Update existing database record (no new user creation)
-#     - Reset OTP timestamp for new expiration window
-#     - Send new OTP via email
-#     """
+
 #     user = db.query(User).filter(User.email == data.email).first()
 #
 #     if not user:
@@ -132,13 +125,7 @@ def register(user: RegisterSchema,
 # FORGOT PASSWORD - SEND OTP
 @app.post("/forgot-password/send-otp")
 def forgot_password_send_otp(user: ForgotPasswordEmailSchema, db: Session = Depends(get_db)):
-    """
-    Forgot Password - Send OTP functionality:
-    - Validate email exists in database
-    - Generate new OTP for password reset
-    - Update existing user record with new OTP and fresh timestamp
-    - Send new OTP via email using existing EmailJS function
-    """
+
     user = db.query(User).filter(User.email == user.email).first()
 
     if not user:
@@ -159,7 +146,6 @@ def forgot_password_send_otp(user: ForgotPasswordEmailSchema, db: Session = Depe
         send_otp_email(user.email, new_otp)
     except Exception as e:
         print(f"Email sending failed: {e}")
-        # Don't fail the operation if email fails, user can still verify with printed OTP
 
     return {"message": "Password reset OTP sent to your email"}
 
@@ -167,12 +153,7 @@ def forgot_password_send_otp(user: ForgotPasswordEmailSchema, db: Session = Depe
 # FORGOT PASSWORD - VERIFY OTP
 @app.post("/forgot-password/verify-otp")
 def forgot_password_verify_otp(data: ForgotPasswordVerifySchema, db: Session = Depends(get_db)):
-    """
-    Forgot Password - Verify OTP functionality:
-    - Validate OTP correctness for password reset
-    - Validate OTP expiration (5 minute)
-    - Return verification status without authenticating user
-    """
+
     user = db.query(User).filter(User.email == data.email).first()
 
     if not user or user.otp != data.otp:
@@ -193,13 +174,7 @@ def forgot_password_verify_otp(data: ForgotPasswordVerifySchema, db: Session = D
 # FORGOT PASSWORD - RESET PASSWORD
 @app.post("/forgot-password/reset-password")
 def forgot_password_reset_password(data: ForgotPasswordResetSchema, db: Session = Depends(get_db)):
-    """
-    Forgot Password - Reset Password functionality:
-    - Re-validate OTP and expiration for security
-    - Update user password in database
-    - Clear OTP and timestamp after successful reset
-    - Return success message
-    """
+
     user = db.query(User).filter(User.email == data.email).first()
 
     if not user or user.otp != data.otp:
@@ -214,9 +189,6 @@ def forgot_password_reset_password(data: ForgotPasswordResetSchema, db: Session 
                 detail="OTP expired. Please request a new OTP."
             )
 
-    # OTP is valid - update password
-    # Note: Using existing password storage approach (plain text as per current implementation)
-    # In production, consider adding password hashing here
     user.password = data.new_password
 
     # Clear OTP and timestamp after successful password reset
@@ -249,13 +221,12 @@ def login(user: LoginSchema,
 @app.put("/setup-profile")
 def update_profile(data: ProfileSetupSchema, db: Session = Depends(get_db)):
 
-    # 1️⃣ Find user by email
     user = db.query(User).filter(User.email == data.email).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # 2️⃣ Update fields
+    #Update fields
     user.gender = data.gender
     user.age = data.age
     user.height = data.height
@@ -264,7 +235,6 @@ def update_profile(data: ProfileSetupSchema, db: Session = Depends(get_db)):
     user.weight_goal = data.weight_goal
     user.activity_level = data.activity_level
 
-    # 3️⃣ Save changes
     db.commit()
     db.refresh(user)
 
@@ -283,13 +253,11 @@ def update_profile(data: ProfileSetupSchema, db: Session = Depends(get_db)):
 @app.get("/get-profile/{email}")
 def get_profile(email: str, db: Session = Depends(get_db)):
 
-    # 1️⃣ Find user by email
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # 2️⃣ Return user data
     return {
         "message":"profile Get successfully",
         "email": user.email,
