@@ -278,14 +278,7 @@ def store_daily_activity(
         db: Session = Depends(get_db)
 ):
     """
-    Store user daily activity and automatically trigger monthly summarization
-
-    Features:
-    - UPSERT logic for daily records (one per user per day)
-    - Automatic monthly summarization when new month starts
-    - 12-month retention enforcement
-    - Daily data cleanup after monthly summary
-    - Idempotent operations
+    Store user daily activity and automatically trigger monthly & Yearly summarization
     """
 
     # Validate input data
@@ -304,17 +297,17 @@ def store_daily_activity(
             detail="Activity date cannot be more than 1 year in the future"
         )
 
-    # Initialize fitness service
+    #Initialize fitness service
     fitness_service = FitnessActivityService(db)
 
     try:
-        # Step 1: Store/Update daily activity (UPSERT logic)
+        #Store/Update daily activity (UPSERT logic)
         daily_record_id = fitness_service.upsert_daily_activity(
             data.user_id, data.activity_date, data.steps,
             data.distance_km, data.calories, data.active_minutes
         )
 
-        # Step 2: Check if monthly summarization should be triggered
+        #Check if monthly summarization should be triggered
         should_summarize = fitness_service.should_trigger_monthly_summary(
             data.user_id, data.activity_date
         )
@@ -324,12 +317,12 @@ def store_daily_activity(
         old_monthly_records_deleted = 0
 
         if should_summarize:
-            # Get the month to aggregate from stored values
+            #Get the month to aggregate from stored values
             if hasattr(fitness_service, '_month_to_aggregate_year'):
                 prev_year = fitness_service._month_to_aggregate_year
                 prev_month = fitness_service._month_to_aggregate_month
 
-                # Step 3: Aggregate and store monthly summary
+                #Aggregate and store monthly summary
                 monthly_summary_data = fitness_service.aggregate_and_store_monthly_summary(
                     data.user_id, prev_year, prev_month
                 )
@@ -338,7 +331,7 @@ def store_daily_activity(
                     daily_records_deleted = monthly_summary_data['daily_records_deleted']
                     old_monthly_records_deleted = monthly_summary_data['old_monthly_records_deleted']
 
-        # Step 4: Check if yearly summarization should be triggered
+        #Check if yearly summarization should be triggered
         should_summarize_yearly = fitness_service.should_trigger_yearly_aggregation(
             data.user_id, data.activity_date
         )
@@ -347,11 +340,11 @@ def store_daily_activity(
         monthly_records_deleted = 0
 
         if should_summarize_yearly:
-            # Get year to aggregate from stored values
+            #Get year to aggregate from stored values
             if hasattr(fitness_service, '_year_to_aggregate'):
                 year_to_aggregate = fitness_service._year_to_aggregate
 
-                # Step 5: Aggregate and store yearly summary
+                #Aggregate and store yearly summary
                 yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
                     data.user_id, year_to_aggregate
                 )
@@ -359,7 +352,7 @@ def store_daily_activity(
                 if yearly_summary_data:
                     monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
 
-        # Get the stored daily record for response
+        #Get the stored daily record for response
         daily_record = db.execute(text("""
                                        SELECT id,
                                               user_id, date, steps, distance_km, calories, active_minutes, created_at

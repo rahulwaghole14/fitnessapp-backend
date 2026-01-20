@@ -44,7 +44,6 @@ class ProfileSetupSchema(BaseModel):
 
 # Daily Activity Schemas
 class DailyActivityRequest(BaseModel):
-    """Request schema for daily activity using existing user_daily_activity table"""
     user_id: int = Field(..., description="User ID")
     activity_date: date = Field(..., description="Activity date in YYYY-MM-DD format")
     steps: int = Field(..., ge=0, description="Number of steps")
@@ -53,7 +52,6 @@ class DailyActivityRequest(BaseModel):
     active_minutes: float = Field(..., ge=0.0, description="Active minutes")
 
 class DailyActivityResponse(BaseModel):
-    """Response schema for daily activity"""
     id: int
     user_id: int
     activity_date: date
@@ -67,7 +65,6 @@ class DailyActivityResponse(BaseModel):
         from_attributes = True
 
 class MonthlySummaryResponse(BaseModel):
-    """Response schema for monthly summary operation"""
     message: str
     daily_activity_stored: bool
     monthly_summary_created: bool

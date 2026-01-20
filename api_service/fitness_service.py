@@ -8,7 +8,7 @@ from database import SessionLocal
 
 
 class FitnessActivityService:
-    """Service for handling daily activity and automatic monthly/yearly summarization"""
+    """handling daily activity and automatic monthly/yearly summarization"""
 
     def __init__(self, db: Session):
         self.db = db
@@ -16,7 +16,6 @@ class FitnessActivityService:
     def get_previous_month_info(self, current_date: date) -> Optional[Tuple[int, int]]:
         """
         Get previous month and year from current date
-        Returns (year, month) or None if current month is January
         """
         if current_date.month == 1:
             return None  # No previous month for January
@@ -108,7 +107,6 @@ class FitnessActivityService:
                                total_calories: float, total_active_minutes: float) -> int:
         """
         Create monthly summary record
-        Returns record ID
         """
         result = self.db.execute(text("""
                                       INSERT INTO user_monthly_activity
@@ -145,7 +143,6 @@ class FitnessActivityService:
     def enforce_12_month_retention(self, user_id: int) -> int:
         """
         Enforce 12-month retention rule
-        Delete oldest monthly records if count exceeds 12
         """
         # Get count of monthly records
         result = self.db.execute(text("""
@@ -174,7 +171,7 @@ class FitnessActivityService:
         self.db.commit()
         return result.rowcount
 
-    # ===== YEARLY AGGREGATION METHODS =====
+    #YEARLY AGGREGATION METHOD
 
     def check_yearly_summary_exists(self, user_id: int, year: int) -> bool:
         """Check if yearly summary already exists"""
@@ -191,7 +188,6 @@ class FitnessActivityService:
                               total_calories: float, total_active_minutes: float) -> int:
         """
         Create yearly summary record
-        Returns record ID
         """
         result = self.db.execute(text("""
                                       INSERT INTO user_yearly_activity
@@ -236,10 +232,6 @@ class FitnessActivityService:
     def should_trigger_yearly_aggregation(self, user_id: int, activity_date: date) -> bool:
         """
         Determine if yearly aggregation should be triggered
-        Triggers when:
-        1. Previous monthly record was month 12
-        2. Current activity is month 1 (January)
-        3. Yearly summary doesn't exist yet
         """
         # Get the most recent monthly record for this user
         result = self.db.execute(text("""
@@ -271,7 +263,6 @@ class FitnessActivityService:
     def aggregate_and_store_yearly_summary(self, user_id: int, year: int) -> Optional[dict]:
         """
         Aggregate monthly data and store yearly summary
-        Returns summary data or None if no monthly records found
         """
         # Get all monthly records for the year
         monthly_records = self.get_yearly_monthly_records(user_id, year)
@@ -319,7 +310,6 @@ class FitnessActivityService:
     def get_previous_month_info(self, current_date: date) -> Optional[Tuple[int, int]]:
         """
         Get previous month and year from current date
-        Returns (year, month) or None if current month is January
         """
         if current_date.month == 1:
             return None  # No previous month for January
@@ -343,7 +333,6 @@ class FitnessActivityService:
                               distance_km: float, calories: float, active_minutes: float) -> int:
         """
         Insert or update daily activity record
-        Returns the record ID
         """
         if self.check_daily_record_exists(user_id, activity_date):
             # Update existing record
@@ -411,7 +400,6 @@ class FitnessActivityService:
                                total_calories: float, total_active_minutes: float) -> int:
         """
         Create monthly summary record
-        Returns the record ID
         """
         result = self.db.execute(text("""
                                       INSERT INTO user_monthly_activity
@@ -448,7 +436,6 @@ class FitnessActivityService:
     def enforce_12_month_retention(self, user_id: int) -> int:
         """
         Enforce 12-month retention rule
-        Delete oldest monthly records if count exceeds 12
         """
         # Get count of monthly records
         result = self.db.execute(text("""
@@ -480,7 +467,6 @@ class FitnessActivityService:
     def aggregate_and_store_monthly_summary(self, user_id: int, year: int, month: int) -> Optional[dict]:
         """
         Aggregate daily data and store monthly summary
-        Returns summary data or None if no daily records found
         """
         # Get all daily records for the month
         daily_records = self.get_monthly_daily_records(user_id, year, month)
@@ -533,10 +519,6 @@ class FitnessActivityService:
     def should_trigger_monthly_summary(self, user_id: int, activity_date: date) -> bool:
         """
         Determine if monthly summary should be triggered
-        Triggers when:
-        1. User submits activity for ANY month
-        2. Previous month has daily records (regardless of gaps)
-        3. Previous month summary doesn't exist yet
         """
         # Get all months that have daily records for this user
         result = self.db.execute(text("""
