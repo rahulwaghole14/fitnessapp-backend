@@ -2,9 +2,11 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 import random
+from sqlalchemy import func, extract, text
+from fitness_service import FitnessActivityService
 
 from database import engine, SessionLocal
-from models import Base, User
+from models import *
 from schemas import *
 # from schemas import RegisterSchema, VerifyOTPSchema, LoginSchema, ResendOTPSchema,ForgotPasswordEmailSchema
 from emailjs_utils import send_otp_email
@@ -270,3 +272,142 @@ def get_profile(email: str, db: Session = Depends(get_db)):
         "activity_level": user.activity_level
     }
 
+@app.post("/activity/daily")
+def store_daily_activity(
+        data: DailyActivityRequest,
+        db: Session = Depends(get_db)
+):
+    """
+    Store user daily activity and automatically trigger monthly summarization
+
+    Features:
+    - UPSERT logic for daily records (one per user per day)
+    - Automatic monthly summarization when new month starts
+    - 12-month retention enforcement
+    - Daily data cleanup after monthly summary
+    - Idempotent operations
+    """
+
+    # Validate input data
+    if data.steps < 0 or data.distance_km < 0 or data.calories < 0 or data.active_minutes < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="All numeric values must be non-negative"
+        )
+
+    # Validate date is not too far in future (allow current month)
+    today = date.today()
+    max_future_date = today.replace(year=today.year + 1, month=12, day=31)
+    if data.activity_date > max_future_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Activity date cannot be more than 1 year in the future"
+        )
+
+    # Initialize fitness service
+    fitness_service = FitnessActivityService(db)
+
+    try:
+        # Step 1: Store/Update daily activity (UPSERT logic)
+        daily_record_id = fitness_service.upsert_daily_activity(
+            data.user_id, data.activity_date, data.steps,
+            data.distance_km, data.calories, data.active_minutes
+        )
+
+        # Step 2: Check if monthly summarization should be triggered
+        should_summarize = fitness_service.should_trigger_monthly_summary(
+            data.user_id, data.activity_date
+        )
+
+        monthly_summary_data = None
+        daily_records_deleted = 0
+        old_monthly_records_deleted = 0
+
+        if should_summarize:
+            # Get the month to aggregate from stored values
+            if hasattr(fitness_service, '_month_to_aggregate_year'):
+                prev_year = fitness_service._month_to_aggregate_year
+                prev_month = fitness_service._month_to_aggregate_month
+
+                # Step 3: Aggregate and store monthly summary
+                monthly_summary_data = fitness_service.aggregate_and_store_monthly_summary(
+                    data.user_id, prev_year, prev_month
+                )
+
+                if monthly_summary_data:
+                    daily_records_deleted = monthly_summary_data['daily_records_deleted']
+                    old_monthly_records_deleted = monthly_summary_data['old_monthly_records_deleted']
+
+        # Step 4: Check if yearly summarization should be triggered
+        should_summarize_yearly = fitness_service.should_trigger_yearly_aggregation(
+            data.user_id, data.activity_date
+        )
+
+        yearly_summary_data = None
+        monthly_records_deleted = 0
+
+        if should_summarize_yearly:
+            # Get year to aggregate from stored values
+            if hasattr(fitness_service, '_year_to_aggregate'):
+                year_to_aggregate = fitness_service._year_to_aggregate
+
+                # Step 5: Aggregate and store yearly summary
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    data.user_id, year_to_aggregate
+                )
+
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+
+        # Get the stored daily record for response
+        daily_record = db.execute(text("""
+                                       SELECT id,
+                                              user_id, date, steps, distance_km, calories, active_minutes, created_at
+                                       FROM daily_activities
+                                       WHERE id = :record_id
+                                       """), {"record_id": daily_record_id}).fetchone()
+
+        daily_response = DailyActivityResponse(
+            id=daily_record[0],
+            user_id=daily_record[1],
+            activity_date=daily_record[2],
+            steps=daily_record[3],
+            distance_km=daily_record[4],
+            calories=daily_record[5],
+            active_minutes=daily_record[6],
+            created_at=daily_record[7].isoformat() if daily_record[7] else ""
+        )
+
+        # Prepare response message
+        message_parts = []
+
+        if should_summarize and monthly_summary_data:
+            message_parts.append(
+                f"Previous month ({prev_year}-{prev_month:02d}) summarized: {monthly_summary_data['total_steps']} steps")
+            message_parts.append(f"Daily records deleted: {daily_records_deleted}")
+            message_parts.append(f"Old monthly records deleted: {old_monthly_records_deleted}")
+
+        if should_summarize_yearly and yearly_summary_data:
+            message_parts.append(f"Year {year_to_aggregate} aggregated: {yearly_summary_data['total_steps']} steps")
+            message_parts.append(f"Monthly records deleted: {monthly_records_deleted}")
+
+        if not message_parts:
+            message = "Daily activity stored successfully."
+        else:
+            message = "Daily activity stored successfully. " + " ".join(message_parts) + "."
+
+        return MonthlySummaryResponse(
+            message=message,
+            daily_activity_stored=True,
+            monthly_summary_created=should_summarize and monthly_summary_data is not None,
+            daily_records_deleted=daily_records_deleted,
+            old_monthly_records_deleted=old_monthly_records_deleted,
+            monthly_data=monthly_summary_data
+        )
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
