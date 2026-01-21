@@ -2,9 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 import random
-from sqlalchemy import func, extract, text
+from sqlalchemy import func, extract, text, and_
 from fitness_service import FitnessActivityService
-
+import calendar
 from database import engine, SessionLocal
 from models import *
 from schemas import *
@@ -218,7 +218,12 @@ def login(user: LoginSchema,
     if not db_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    return {"message": "Login successful", "username": db_user.username}
+    return {"message": "Login successful", "username": {
+            "user_id": db_user.id,
+            "username": db_user.username,
+            "email": db_user.email,
+                }
+            }
 
 @app.put("/setup-profile")
 def update_profile(data: ProfileSetupSchema, db: Session = Depends(get_db)):
@@ -397,6 +402,166 @@ def store_daily_activity(
             old_monthly_records_deleted=old_monthly_records_deleted,
             monthly_data=monthly_summary_data
         )
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@app.get("/activity/daily/{user_id}")
+def get_user_daily_activities(user_id: int, db: Session = Depends(get_db)):
+    """
+    Get all daily activities for a specific user
+    Returns daily activities ordered by date (newest first)
+    """
+    # Verify user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        # Get daily activities for the user (LINES 225-243)
+        activities = db.query(DailyActivity).filter(
+            DailyActivity.user_id == user_id
+        ).order_by(DailyActivity.date.desc()).all()
+
+        return [
+            UserDailyActivityResponse(
+                id=activity.id,
+                user_id=activity.user_id,
+                date=activity.date,
+                steps=activity.steps,
+                distance_km=activity.distance_km,
+                calories=activity.calories,
+                active_minutes=activity.active_minutes,
+                created_at=activity.created_at.isoformat(),
+                updated_at=activity.updated_at.isoformat()
+            )
+            for activity in activities
+        ]
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/activity/weekly")
+def get_weekly_analytics(
+        user_id: int,
+        year: int,
+        month: int,
+        db: Session = Depends(get_db)
+):
+    """
+    Get weekly aggregated activity data for a specific month.
+    Splits month into 4 weeks and aggregates data per week.
+    """
+
+    # Verify user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get all activities for the month
+    activities = db.query(DailyActivity).filter(
+        and_(
+            DailyActivity.user_id == user_id,
+            extract('year', DailyActivity.date) == year,
+            extract('month', DailyActivity.date) == month
+        )
+    ).all()
+
+    # Group activities by week
+    weekly_data = []
+
+    for week_num in range(1, 5):  # 4 weeks per month
+        # Calculate week start and end dates
+        month_start = date(year, month, 1)
+
+        if week_num == 1:
+            week_start = month_start
+            week_end = date(year, month, min(7, calendar.monthrange(year, month)[1]))
+        elif week_num == 2:
+            week_start = date(year, month, 8)
+            week_end = date(year, month, min(14, calendar.monthrange(year, month)[1]))
+        elif week_num == 3:
+            week_start = date(year, month, 15)
+            week_end = date(year, month, min(21, calendar.monthrange(year, month)[1]))
+        else:  # week 4
+            week_start = date(year, month, 22)
+            week_end = date(year, month, calendar.monthrange(year, month)[1])
+
+        # Filter activities for this week
+        week_activities = [
+            activity for activity in activities
+            if week_start <= activity.date <= week_end
+        ]
+
+        # Calculate totals for the week
+        total_steps = sum(activity.steps for activity in week_activities)
+        total_calories = sum(activity.calories for activity in week_activities)
+        total_distance = sum(activity.distance_km for activity in week_activities)
+        total_active_minutes = sum(activity.active_minutes for activity in week_activities)
+
+        weekly_data.append(WeeklyActivityData(
+            week_number=week_num,
+            start_date=week_start.isoformat(),
+            end_date=week_end.isoformat(),
+            total_steps=total_steps,
+            total_calories=total_calories,
+            total_distance=total_distance,
+            total_active_minutes=total_active_minutes
+        ))
+
+    return WeeklyAnalyticsResponse(
+        user_id=user_id,
+        year=year,
+        month=month,
+        weeks=weekly_data
+    )
+
+@app.get("/activity/monthly/{user_id}") # New monthly activities endpoint
+def get_user_monthly_activities(
+        user_id: int,
+        db: Session = Depends(get_db)
+):
+    """
+    Get all monthly activity records for a specific user
+    Returns monthly activities ordered by year and month (newest first)
+    """
+    # Verify user exists
+    user = db.execute(text("SELECT id FROM users WHERE id = :user_id"), {"user_id": user_id}).fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Initialize fitness service
+    fitness_service = FitnessActivityService(db)
+
+    try:
+        # Get monthly activities for the user
+        monthly_records = fitness_service.get_user_monthly_activities(user_id)
+
+        if not monthly_records:
+            return []
+
+        # Format response
+        monthly_activities = []
+        for record in monthly_records:
+            monthly_activities.append(MonthlyActivityResponse(
+                id=record[0],
+                user_id=user_id,
+                year=record[1],
+                month=record[2],
+                total_steps=record[3],
+                total_distance_km=record[4],
+                total_calories=record[5],
+                total_active_minutes=record[6],
+                created_at=record[7].isoformat() if record[7] else ""
+            ))
+
+        return monthly_activities
 
     except Exception as e:
         db.rollback()

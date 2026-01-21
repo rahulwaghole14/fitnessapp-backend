@@ -569,3 +569,17 @@ class FitnessActivityService:
         self._month_to_aggregate_month = most_recent_month
 
         return True
+
+    def get_user_monthly_activities(self, user_id: int) -> list:
+        """
+        Get all monthly activity records for a user
+        Returns list of monthly activity records
+        """
+        result = self.db.execute(text("""
+                                      SELECT id, year, month, total_steps, total_distance_km, total_calories, total_active_minutes, created_at
+                                      FROM user_monthly_activity
+                                      WHERE user_id = :user_id
+                                      ORDER BY year DESC, month DESC
+                                      """), {"user_id": user_id})
+
+        return result.fetchall()

@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import date
 from typing import Optional
 
+
 class RegisterSchema(BaseModel):
     username : str
     email: EmailStr
@@ -70,3 +71,47 @@ class MonthlySummaryResponse(BaseModel):
     monthly_summary_created: bool
     daily_records_deleted: int
     monthly_data: Optional[dict] = None
+
+class UserDailyActivityResponse(BaseModel):
+    id: int
+    user_id: int
+    date: date
+    steps: int
+    distance_km: float
+    calories: float
+    active_minutes: float
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+class WeeklyActivityData(BaseModel):
+    week_number: int
+    start_date: str
+    end_date: str
+    total_steps: int
+    total_calories: float
+    total_distance: float
+    total_active_minutes: float
+
+class WeeklyAnalyticsResponse(BaseModel):
+    user_id: int
+    year: int
+    month: int
+    weeks: list[WeeklyActivityData]
+
+class MonthlyActivityResponse(BaseModel):
+    """Response schema for monthly activity"""
+    id: int
+    user_id: int
+    year: int
+    month: int
+    total_steps: int
+    total_distance_km: float
+    total_calories: float
+    total_active_minutes: float
+    created_at: str
+
+    class Config:
+        from_attributes = True
