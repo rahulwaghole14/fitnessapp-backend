@@ -424,3 +424,46 @@ class FitnessActivityService:
                                       """), {"user_id": user_id})
 
         return result.fetchall()
+
+    def check_yearly_monthly_records_exist(self, user_id: int, year: int) -> bool:
+        """Check if any monthly records exist for a specific year"""
+        result = self.db.execute(text("""
+                                      SELECT COUNT(*)
+                                      FROM user_monthly_activity
+                                      WHERE user_id = :user_id AND year = :year
+                                      """), {"user_id": user_id, "year": year})
+
+        return result.scalar() > 0
+
+    def check_all_q1_months_exist(self, user_id: int, year: int) -> bool:
+        """Check if all Q1 months (Jan, Feb, Mar) exist in monthly table for given year"""
+        result = self.db.execute(text("""
+                                      SELECT COUNT(DISTINCT month) 
+                                      FROM user_monthly_activity 
+                                      WHERE user_id = :user_id AND year = :year AND month IN (1, 2, 3)
+                                      """), {"user_id": user_id, "year": year})
+        
+        distinct_months = result.scalar()
+        return distinct_months == 3  # All 3 Q1 months must exist
+
+    def check_any_q1_month_exists(self, user_id: int, year: int) -> bool:
+        """Check if any Q1 month (Jan, Feb, Mar) exists in monthly table for given year"""
+        result = self.db.execute(text("""
+                                      SELECT COUNT(*) 
+                                      FROM user_monthly_activity 
+                                      WHERE user_id = :user_id AND year = :year AND month IN (1, 2, 3)
+                                      """), {"user_id": user_id, "year": year})
+        
+        count = result.scalar()
+        return count > 0  # Any Q1 month exists
+
+    def check_partial_q1_months_count(self, user_id: int, year: int) -> int:
+        """Get count of Q1 months (Jan, Feb, Mar) that exist in monthly table for given year"""
+        result = self.db.execute(text("""
+                                      SELECT COUNT(DISTINCT month) 
+                                      FROM user_monthly_activity 
+                                      WHERE user_id = :user_id AND year = :year AND month IN (1, 2, 3)
+                                      """), {"user_id": user_id, "year": year})
+        
+        distinct_months = result.scalar()
+        return distinct_months  # Returns 0, 1, 2, or 3

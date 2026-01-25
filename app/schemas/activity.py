@@ -29,7 +29,10 @@ class MonthlySummaryResponse(BaseModel):
     daily_activity_stored: bool
     monthly_summary_created: bool
     daily_records_deleted: int
+    old_monthly_records_deleted: int = 0
     monthly_data: Optional[dict] = None
+    yearly_summary_created: bool = False
+    yearly_data: Optional[dict] = None
 
 class UserDailyActivityResponse(BaseModel):
     id: int

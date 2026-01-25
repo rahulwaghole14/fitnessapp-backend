@@ -74,24 +74,58 @@ def store_daily_activity(
                     daily_records_deleted = monthly_summary_data['daily_records_deleted']
                     old_monthly_records_deleted = monthly_summary_data['old_monthly_records_deleted']
 
-        #Check if yearly summarization should be triggered
-        should_summarize_yearly = fitness_service.should_trigger_yearly_aggregation(
-            data.user_id, data.activity_date
-        )
-
+        # Step 4: Check if yearly summarization should be triggered
+        # Dual-condition system: Q1 complete OR partial/skipped Q1
         yearly_summary_data = None
         monthly_records_deleted = 0
-
-        if should_summarize_yearly:
-            #Get year to aggregate from stored values
-            if hasattr(fitness_service, '_year_to_aggregate'):
-                year_to_aggregate = fitness_service._year_to_aggregate
-
-                #Aggregate and store yearly summary
+        
+        # Get current year and month from activity date
+        current_year = data.activity_date.year
+        current_month = data.activity_date.month
+        previous_year = current_year - 1
+        
+        # Check if previous year has monthly records to aggregate
+        has_monthly_records = fitness_service.check_yearly_monthly_records_exist(data.user_id, previous_year)
+        
+        # Check if yearly summary doesn't exist for previous year
+        if has_monthly_records and not fitness_service.check_yearly_summary_exists(data.user_id, previous_year):
+            
+            # Get Q1 months count for current year
+            q1_months_count = fitness_service.check_partial_q1_months_count(data.user_id, current_year)
+            
+            # CONDITION 1: Q1 is complete (3 months) - trigger aggregation
+            if q1_months_count == 3:
                 yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
-                    data.user_id, year_to_aggregate
+                    data.user_id, previous_year
                 )
-
+                
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+            
+            # CONDITION 2: Q1 is skipped (0 months) - trigger on first activity after Q1
+            elif q1_months_count == 0 and current_month >= 4:  # After Q1 (April onwards)
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    data.user_id, previous_year
+                )
+                
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+            
+            # CONDITION 3: Partial Q1 (1 month) - trigger on first activity after Q1
+            elif q1_months_count == 1 and current_month >= 4:  # After Q1 (April onwards)
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    data.user_id, previous_year
+                )
+                
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+            
+            # CONDITION 4: Partial Q1 (2 months) - trigger on first activity after Q1
+            elif q1_months_count == 2 and current_month >= 4:  # After Q1 (April onwards)
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    data.user_id, previous_year
+                )
+                
                 if yearly_summary_data:
                     monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
 
@@ -123,8 +157,18 @@ def store_daily_activity(
             message_parts.append(f"Daily records deleted: {daily_records_deleted}")
             message_parts.append(f"Old monthly records deleted: {old_monthly_records_deleted}")
 
-        if should_summarize_yearly and yearly_summary_data:
-            message_parts.append(f"Year {year_to_aggregate} aggregated: {yearly_summary_data['total_steps']} steps")
+        if yearly_summary_data:
+            trigger_reason = ""
+            if q1_months_count == 3:
+                trigger_reason = " (Q1 complete)"
+            elif q1_months_count == 0:
+                trigger_reason = " (Q1 skipped - first post-Q1 activity)"
+            elif q1_months_count == 1:
+                trigger_reason = " (Q1 partial - 1 month present)"
+            elif q1_months_count == 2:
+                trigger_reason = " (Q1 partial - 2 months present)"
+            
+            message_parts.append(f"Year {previous_year} aggregated{trigger_reason}: {yearly_summary_data['total_steps']} steps")
             message_parts.append(f"Monthly records deleted: {monthly_records_deleted}")
 
         if not message_parts:
@@ -138,7 +182,9 @@ def store_daily_activity(
             monthly_summary_created=should_summarize and monthly_summary_data is not None,
             daily_records_deleted=daily_records_deleted,
             old_monthly_records_deleted=old_monthly_records_deleted,
-            monthly_data=monthly_summary_data
+            monthly_data=monthly_summary_data,
+            yearly_summary_created=yearly_summary_data is not None,
+            yearly_data=yearly_summary_data
         )
 
     except Exception as e:
