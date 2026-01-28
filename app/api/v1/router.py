@@ -5,8 +5,9 @@ from .auth import (
     forgot_password_send_otp, forgot_password_verify_otp, forgot_password_reset_password,
     update_profile, get_profile)
 
-from .activities import store_daily_activity, get_weekly_analytics, get_user_daily_activities, get_user_monthly_activities
-
+from .activities import (store_daily_activity, get_weekly_analytics,
+                         get_user_daily_activities, get_user_monthly_activities)
+from .meals import *
 
 router = APIRouter()
 
@@ -21,8 +22,12 @@ router.get("/profile")(get_profile),
 
 #Activity Endpoints
 router.post("/activity/daily")(store_daily_activity)  # New fitness endpoint with auto-summarization
-router.get("/activity/weekly")(get_weekly_analytics)
-router.get("/activity/daily/{user_id}")(get_user_daily_activities)
-router.get("/activity/monthly/{user_id}")(get_user_monthly_activities)  # New monthly activities endpoint
+router.get("/activity/weekly")(get_weekly_analytics)  # get the user data monthly record week wise
+router.get("/activity/daily/{user_id}")(get_user_daily_activities)  # get user data of all month daywise
+router.get("/activity/monthly/{user_id}")(get_user_monthly_activities)  # New monthly activities endpoint  and get the user data monthly
 # router.get("/activity/yearly/{user_id}")(get_user_yearly_activities)  # New yearly activities endpoint
 
+# Meal endpoints
+router.get("/meals/{user_id}")(get_meals_by_user_bmi)
+router.post("/bmi-classification")(create_bmi_classification)
+router.post("/meals")(create_meal)
