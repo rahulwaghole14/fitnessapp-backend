@@ -7,7 +7,9 @@ from .auth import (
 
 from .activities import (store_daily_activity, get_weekly_analytics,
                          get_user_daily_activities, get_user_monthly_activities)
-from .meals import *
+from .meals import get_meals_by_user_bmi, create_bmi_classification, create_meal
+from .workouts import create_workout, get_workouts_for_user
+
 
 router = APIRouter()
 
@@ -31,3 +33,8 @@ router.get("/activity/monthly/{user_id}")(get_user_monthly_activities)  # New mo
 router.get("/meals/{user_id}")(get_meals_by_user_bmi)
 router.post("/bmi-classification")(create_bmi_classification)
 router.post("/meals")(create_meal)
+
+# Workout endpoints
+router.post("/workouts")(create_workout)
+router.get("/workouts/{user_id}")(get_workouts_for_user)
+
