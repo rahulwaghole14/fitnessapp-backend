@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from .auth import (
     register, login,
     forgot_password_send_otp, forgot_password_verify_otp, forgot_password_reset_password,
-    update_profile, get_profile)
+    update_profile, get_profile,upload_profile_image, get_user_profile)
 
 from .activities import (store_daily_activity, get_weekly_analytics,
                          get_user_daily_activities, get_user_monthly_activities)
@@ -20,7 +20,11 @@ router.post("/forgot-password/verify-otp")(forgot_password_verify_otp),
 router.post("/forgot-password/reset-password")(forgot_password_reset_password),
 router.post("/login")(login),
 router.put("/setup-profile")(update_profile),
-router.get("/profile")(get_profile),
+router.get("/profile/{email}")(get_profile),
+# Profile image endpoints
+router.put("/users/profile-image")(upload_profile_image)
+router.get("/users/profile/{user_id}")(get_user_profile)
+
 
 #Activity Endpoints
 router.post("/activity/daily")(store_daily_activity)  # New fitness endpoint with auto-summarization
