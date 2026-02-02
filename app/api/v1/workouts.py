@@ -70,7 +70,8 @@ def get_workouts_for_user(user_id: int, db: Session = Depends(get_db)):
         workout_category = "maintain"
 
     # Query workouts based on user's activity_level and calculated category
-    query = db.query(Workout).filter(Workout.activity_level == user.activity_level)
+    # query = db.query(Workout).filter(Workout.activity_level == user.activity_level)
+    query = db.query(Workout)
 
     if workout_category:
         query = query.filter(Workout.workout_category == workout_category)

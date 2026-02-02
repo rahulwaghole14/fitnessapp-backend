@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from app.api.router import api_router
 from app.core.database import engine, Base
 from app.models import *
@@ -7,6 +8,9 @@ from app.models import *
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Fitness App API")
+
+# Mount static files for media directory
+app.mount("/media", StaticFiles(directory="app/media"), name="media")
 
 # Include API routes
 app.include_router(api_router, prefix="/api")
