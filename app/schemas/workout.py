@@ -5,8 +5,6 @@ from datetime import datetime
 class WorkoutCreate(BaseModel):
     title: str
     description: str
-    workout_image_url: str
-    workout_video_url: str
     duration: int
     calorie_burn: int
     activity_level: str

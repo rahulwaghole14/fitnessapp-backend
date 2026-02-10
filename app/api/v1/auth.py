@@ -1,12 +1,16 @@
 from fastapi import Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 from typing import Optional
+import bcrypt
 
 
 from app.core.database import get_db
 from app.models.user import User
+from app.models.refresh_token import RefreshToken
+from app.core.jwt_utils import create_access_token, create_refresh_token
+from app.core.auth_dependencies import get_current_user, get_current_user_id
 
 from app.schemas.auth import (
     RegisterSchema, VerifyOTPSchema, LoginSchema, ResendOTPSchema,
@@ -20,6 +24,27 @@ from app.services.image_service import ImageService
 image_service = ImageService()
 
 
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    # Convert password to bytes and truncate to 72 bytes
+    password_bytes = password.encode('utf-8')[:72]
+    # Generate salt and hash
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain password against a hashed password."""
+    try:
+        # Convert password to bytes and truncate to 72 bytes
+        password_bytes = plain_password.encode('utf-8')[:72]
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except:
+        # Fallback to plain text comparison for backward compatibility
+        return plain_password == hashed_password
+
+
 
 def register(user: RegisterSchema,
             db: Session = Depends(get_db)
@@ -31,7 +56,7 @@ def register(user: RegisterSchema,
     new_user = User(
         username=user.username,
         email=user.email,
-        password=user.password  # plain text for now
+        password=hash_password(user.password)
     )
 
     db.add(new_user)
@@ -56,7 +81,7 @@ def forgot_password_send_otp(user: ForgotPasswordEmailSchema, db: Session = Depe
     db.commit()
 
     print(f"Forgot Password OTP for {user.email}: {new_otp}")
-
+ 
     # Send new OTP via email using existing EmailJS function
     try:
         send_otp_email(user.email, new_otp)
@@ -77,7 +102,7 @@ def forgot_password_verify_otp(data: ForgotPasswordVerifySchema, db: Session = D
     # Check OTP expiration (300 seconds validity) - reuse existing logic
     if user.otp_created_at:
         time_elapsed = datetime.utcnow() - user.otp_created_at
-        if time_elapsed.total_seconds() > 300:  # OTP expires after 60 seconds
+        if time_elapsed.total_seconds() > 300:  # OTP expires after 300 seconds
             raise HTTPException(
                 status_code=400,
                 detail="OTP expired. Please request a new OTP."
@@ -97,13 +122,13 @@ def forgot_password_reset_password(data: ForgotPasswordResetSchema, db: Session 
     # Re-check OTP expiration (300 seconds validity) for security
     if user.otp_created_at:
         time_elapsed = datetime.utcnow() - user.otp_created_at
-        if time_elapsed.total_seconds() > 300:  # OTP expires after 60 seconds
+        if time_elapsed.total_seconds() > 300:  # OTP expires after 300 seconds
             raise HTTPException(
                 status_code=400,
                 detail="OTP expired. Please request a new OTP."
             )
 
-    user.password = data.new_password
+    user.password = hash_password(data.new_password)
 
     # Clear OTP and timestamp after successful password reset
     user.otp = None
@@ -120,94 +145,103 @@ def login(user: LoginSchema,
           ):
     # db: Session = get_db()
 
-    db_user = db.query(User).filter(
-        User.email == user.email,
-        User.password == user.password
-
-    ).first()
+    db_user = db.query(User).filter(User.email == user.email).first()
 
     if not db_user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    return {"message": "Login successful", "username": {
+    # Verify password using secure verification with backward compatibility
+    if not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Generate JWT tokens
+    access_token = create_access_token(db_user.id)
+    refresh_token, refresh_token_hash = create_refresh_token(db_user.id)
+    
+    # Extract JTI from the refresh token
+    from app.core.jwt_utils import decode_refresh_token
+    payload = decode_refresh_token(refresh_token)
+    jti = payload.get("jti")
+    
+    # Store hashed refresh token in database with JTI
+    db_refresh_token = RefreshToken(
+        user_id=db_user.id,
+        token_hash=refresh_token_hash,
+        jti=jti,  # Store JWT ID for tracking
+        expires_at=datetime.utcnow() + timedelta(days=7),
+        last_used_at=datetime.utcnow()
+    )
+    db.add(db_refresh_token)
+    db.commit()
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
             "user_id": db_user.id,
             "username": db_user.username,
             "email": db_user.email,
-                }
-            }
+        }
+    }
 
 #Setup User Profile
-def update_profile(data: ProfileSetupSchema, db: Session = Depends(get_db)):
+def update_profile(data: ProfileSetupSchema, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
 
-    user = db.query(User).filter(User.email == data.email).first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    #Update fields
-    user.gender = data.gender
-    user.age = data.age
-    user.height = data.height
-    user.weight = data.weight
-    user.bmi = data.bmi
-    user.weight_goal = data.weight_goal
-    user.activity_level = data.activity_level
+    #Update fields for current user
+    current_user.gender = data.gender
+    current_user.age = data.age
+    current_user.height = data.height
+    current_user.weight = data.weight
+    current_user.bmi = data.bmi
+    current_user.weight_goal = data.weight_goal
+    current_user.activity_level = data.activity_level
 
     db.commit()
-    db.refresh(user)
+    db.refresh(current_user)
 
     return {
         "message": "Profile updated successfully",
-        "email": user.email,
-        "gender": user.gender,
-        "age": user.age,
-        "weight": user.weight,
-        "height": user.height,
-        "bmi": user.bmi,
-        "weight_goal": user.weight_goal,
-        "activity_level": user.activity_level,
+        "email": current_user.email,
+        "gender": current_user.gender,
+        "age": current_user.age,
+        "weight": current_user.weight,
+        "height": current_user.height,
+        "bmi": current_user.bmi,
+        "weight_goal": current_user.weight_goal,
+        "activity_level": current_user.activity_level,
     }
 
 #Get User Profile
-def get_profile(email: str, db: Session = Depends(get_db)):
+def get_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
 
-    user = db.query(User).filter(User.email == email).first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
+    """
+    Get profile for the authenticated user
+    """
     return {
         "message":"profile Get successfully",
-        "email": user.email,
-        "gender": user.gender,
-        "age": user.age,
-        "height": user.height,
-        "weight": user.weight,
-        "bmi": user.bmi,
-        "weight_goal": user.weight_goal,
-        "activity_level": user.activity_level
+        # "email": current_user.email,
+        "gender": current_user.gender,
+        "age": current_user.age,
+        "height": current_user.height,
+        "weight": current_user.weight,
+        "bmi": current_user.bmi,
+        "weight_goal": current_user.weight_goal,
+        "activity_level": current_user.activity_level
     }
 
 
 async def upload_profile_image(
         profile_image: UploadFile = File(...),
-        user_id: int = Form(...),
+        current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
     """
-    Upload or update user's profile image
-
-    Args:
-        profile_image: Image file (jpg, jpeg, png, max 5MB)
-        user_id: User ID
-        db: Database session
-
-    Returns:
-        Success response with image path
+    Upload or update authenticated user's profile image
     """
 
-    # Check if user exists
-    user = db.query(User).filter(User.id == user_id).first()
+    # Get current user
+    user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -220,7 +254,7 @@ async def upload_profile_image(
             image_service.delete_old_profile_image(old_image_path)
 
         # Save new profile image
-        new_image_path = await image_service.save_profile_image(profile_image, user_id)
+        new_image_path = await image_service.save_profile_image(profile_image, current_user_id)
 
         # Update user's profile image in database
         user.profile_image = new_image_path
@@ -243,40 +277,25 @@ async def upload_profile_image(
 
 
 async def get_user_profile(
-        user_id: int,
+        current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
     """
-    Get user profile data including profile image path
-
-    Args:
-        user_id: User ID
-        db: Database session
-
-    Returns:
-        User profile data with relative profile image path
+    Get authenticated user's profile data including profile image path
     """
-
-    # Check if user exists
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        return {
-            "success": False,
-            "message": "User not found"
-        }
 
     # Return relative profile image path if exists
     profile_image_path: Optional[str] = None
-    if user.profile_image:
+    if current_user.profile_image:
         # Convert stored path to public relative path
-        profile_image_path = user.profile_image.replace("app/", "/")
+        profile_image_path = current_user.profile_image.replace("app/", "/")
 
     return {
         "success": True,
         "data": {
-            "id": user.id,
-            "name": user.email.split("@")[0] if user.email else None,  # Extract name from email
-            "email": user.email,
+            "id": current_user.id,
+            "name": current_user.email.split("@")[0] if current_user.email else None,  # Extract name from email
+            "email": current_user.email,
             "profile_image": profile_image_path
         }
     }

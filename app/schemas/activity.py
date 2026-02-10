@@ -3,7 +3,6 @@ from datetime import date
 from typing import Optional
 
 class DailyActivityRequest(BaseModel):
-    user_id: int = Field(..., description="User ID")
     activity_date: date = Field(..., description="Activity date in YYYY-MM-DD format")
     steps: int = Field(..., ge=0, description="Number of steps")
     distance_km: float = Field(..., ge=0.0, description="Distance in kilometers")
@@ -13,7 +12,7 @@ class DailyActivityRequest(BaseModel):
 
 class DailyActivityResponse(BaseModel):
     id: int
-    user_id: int
+    # user_id: int
     activity_date: date
     steps: int
     distance_km: float

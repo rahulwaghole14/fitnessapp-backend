@@ -4,6 +4,7 @@ from sqlalchemy import and_, or_
 from typing import List
 
 from app.core.database import get_db
+from app.core.auth_dependencies import get_current_user, get_current_user_id
 from app.models import User
 from app.models.bmi_classification import BMIClassification
 from app.models.meal import Meal
@@ -12,23 +13,15 @@ from app.schemas.bmi_classification import BMIClassificationCreate, BMIClassific
 router = APIRouter()
 
 
-def get_meals_by_user_bmi(user_id: int, db: Session = Depends(get_db)):
+def get_meals_by_user_bmi(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Get meals based on user's BMI.
+    Get meals based on authenticated user's BMI.
     """
-    # Check if user exists
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
     # Determine BMI value to use
-    if user.bmi is None:
+    if current_user.bmi is None:
         bmi_value = 21.75  # Middle of Normal range (18.5-25)
     else:
-        bmi_value = user.bmi
+        bmi_value = current_user.bmi
 
     # Find BMI category
     bmi_category = db.query(BMIClassification).filter(

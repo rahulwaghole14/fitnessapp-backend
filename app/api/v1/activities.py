@@ -8,6 +8,7 @@ from app.services.fitness_services import FitnessActivityService
 
 
 from app.core.database import get_db
+from app.core.auth_dependencies import get_current_user_id
 from app.models.user import  User
 from app.models.activity import DailyActivity
 from app.schemas.activity import (
@@ -18,6 +19,7 @@ from app.schemas.activity import (
 
 def store_daily_activity(
         data: DailyActivityRequest,
+        current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
     """
@@ -46,13 +48,13 @@ def store_daily_activity(
     try:
         #Store/Update daily activity (UPSERT logic)
         daily_record_id = fitness_service.upsert_daily_activity(
-            data.user_id, data.activity_date, data.steps,
+            current_user_id, data.activity_date, data.steps,
             data.distance_km, data.calories, data.active_minutes
         )
 
         #Check if monthly summarization should be triggered
         should_summarize = fitness_service.should_trigger_monthly_summary(
-            data.user_id, data.activity_date
+            current_user_id, data.activity_date
         )
 
         monthly_summary_data = None
@@ -67,7 +69,7 @@ def store_daily_activity(
 
                 #Aggregate and store monthly summary
                 monthly_summary_data = fitness_service.aggregate_and_store_monthly_summary(
-                    data.user_id, prev_year, prev_month
+                    current_user_id, prev_year, prev_month
                 )
 
                 if monthly_summary_data:
@@ -85,18 +87,18 @@ def store_daily_activity(
         previous_year = current_year - 1
         
         # Check if previous year has monthly records to aggregate
-        has_monthly_records = fitness_service.check_yearly_monthly_records_exist(data.user_id, previous_year)
+        has_monthly_records = fitness_service.check_yearly_monthly_records_exist(current_user_id, previous_year)
         
         # Check if yearly summary doesn't exist for previous year
-        if has_monthly_records and not fitness_service.check_yearly_summary_exists(data.user_id, previous_year):
+        if has_monthly_records and not fitness_service.check_yearly_summary_exists(current_user_id, previous_year):
             
             # Get Q1 months count for current year
-            q1_months_count = fitness_service.check_partial_q1_months_count(data.user_id, current_year)
+            q1_months_count = fitness_service.check_partial_q1_months_count(current_user_id, current_year)
             
             # CONDITION 1: Q1 is complete (3 months) - trigger aggregation
             if q1_months_count == 3:
                 yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
-                    data.user_id, previous_year
+                    current_user_id, previous_year
                 )
                 
                 if yearly_summary_data:
@@ -105,7 +107,7 @@ def store_daily_activity(
             # CONDITION 2: Q1 is skipped (0 months) - trigger on first activity after Q1
             elif q1_months_count == 0 and current_month >= 4:  # After Q1 (April onwards)
                 yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
-                    data.user_id, previous_year
+                    current_user_id, previous_year
                 )
                 
                 if yearly_summary_data:
@@ -114,7 +116,7 @@ def store_daily_activity(
             # CONDITION 3: Partial Q1 (1 month) - trigger on first activity after Q1
             elif q1_months_count == 1 and current_month >= 4:  # After Q1 (April onwards)
                 yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
-                    data.user_id, previous_year
+                    current_user_id, previous_year
                 )
                 
                 if yearly_summary_data:
@@ -123,7 +125,7 @@ def store_daily_activity(
             # CONDITION 4: Partial Q1 (2 months) - trigger on first activity after Q1
             elif q1_months_count == 2 and current_month >= 4:  # After Q1 (April onwards)
                 yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
-                    data.user_id, previous_year
+                    current_user_id, previous_year
                 )
                 
                 if yearly_summary_data:
@@ -196,20 +198,15 @@ def store_daily_activity(
 
 
 #Get user daily activity
-def get_user_daily_activities(user_id: int, db: Session = Depends(get_db)):
+def get_user_daily_activities(current_user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     """
-    Get all daily activities for a specific user
+    Get all daily activities for the authenticated user
     Returns daily activities ordered by date (newest first)
     """
-    # Verify user exists
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
     try:
         # Get daily activities for the user (LINES 225-243)
         activities = db.query(DailyActivity).filter(
-            DailyActivity.user_id == user_id
+            DailyActivity.user_id == current_user_id
         ).order_by(DailyActivity.date.desc()).all()
 
         return [
@@ -233,9 +230,9 @@ def get_user_daily_activities(user_id: int, db: Session = Depends(get_db)):
 
 #Get user weekly data
 def get_weekly_analytics(
-        user_id: int,
         year: int,
         month: int,
+        current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
     """
@@ -244,14 +241,14 @@ def get_weekly_analytics(
     """
 
     # Verify user exists
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     # Get all activities for the month
     activities = db.query(DailyActivity).filter(
         and_(
-            DailyActivity.user_id == user_id,
+            DailyActivity.user_id == current_user_id,
             extract('year', DailyActivity.date) == year,
             extract('month', DailyActivity.date) == month
         )
@@ -300,7 +297,7 @@ def get_weekly_analytics(
         ))
 
     return WeeklyAnalyticsResponse(
-        user_id=user_id,
+        user_id=current_user_id,
         year=year,
         month=month,
         weeks=weekly_data
@@ -308,24 +305,19 @@ def get_weekly_analytics(
 
  # New monthly activities endpoint
 def get_user_monthly_activities(
-        user_id: int,
+        current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
     """
-    Get all monthly activity records for a specific user
+    Get all monthly activity records for the authenticated user
     Returns monthly activities ordered by year and month (newest first)
     """
-    # Verify user exists
-    user = db.execute(text("SELECT id FROM users WHERE id = :user_id"), {"user_id": user_id}).fetchone()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
     # Initialize fitness service
     fitness_service = FitnessActivityService(db)
 
     try:
         # Get monthly activities for the user
-        monthly_records = fitness_service.get_user_monthly_activities(user_id)
+        monthly_records = fitness_service.get_user_monthly_activities(current_user_id)
 
         if not monthly_records:
             return []
@@ -335,7 +327,7 @@ def get_user_monthly_activities(
         for record in monthly_records:
             monthly_activities.append(MonthlyActivityResponse(
                 id=record[0],
-                user_id=user_id,
+                user_id=current_user_id,
                 year=record[1],
                 month=record[2],
                 total_steps=record[3],

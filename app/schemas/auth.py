@@ -31,7 +31,7 @@ class LoginSchema(BaseModel):
     password: str
 
 class ProfileSetupSchema(BaseModel):
-    email:str
+    # email:str
     gender:str
     age:str
     height:float

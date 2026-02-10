@@ -9,3 +9,5 @@ email-validator
 Pillow
 aiofiles
 python-multipart
+bcrypt
+python-jose[cryptography]

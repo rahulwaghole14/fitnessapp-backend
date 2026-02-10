@@ -31,3 +31,6 @@ class User(Base):
 
     # Relationship with UserYearlyActivity
     yearly_activities = relationship("UserYearlyActivity", back_populates="user")
+
+    # Relationship with RefreshToken
+    refresh_tokens = relationship("RefreshToken", back_populates="user")

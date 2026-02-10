@@ -8,8 +8,7 @@ from pathlib import Path
 
 # Allowed image extensions
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
-
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 class ImageService:
     def __init__(self, upload_dir: str = "app/media/profile_images"):
@@ -77,7 +76,6 @@ class ImageService:
                 except Exception:
                     # Log error but don't fail the operation
                     pass
-
 
 # Import io for BytesIO
 import io
