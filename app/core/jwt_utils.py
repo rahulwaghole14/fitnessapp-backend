@@ -18,7 +18,6 @@ if not JWT_SECRET_KEY:
 
 
 def create_access_token(user_id: int) -> str:
-    """Create JWT access token with 60-minute expiry."""
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"sub": str(user_id), "exp": expire, "type": "access"}
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
@@ -26,7 +25,6 @@ def create_access_token(user_id: int) -> str:
 
 
 def create_refresh_token(user_id: int) -> Tuple[str, str]:
-    """Create JWT refresh token with 7-day expiry and return token and its hash."""
     expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     jti = str(uuid.uuid4())  # Generate unique JWT ID
     to_encode = {"sub": str(user_id), "exp": expire, "type": "refresh", "jti": jti}
@@ -36,7 +34,6 @@ def create_refresh_token(user_id: int) -> Tuple[str, str]:
 
 
 def decode_access_token(token: str) -> Dict:
-    """Decode and validate access token."""
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "access":
@@ -49,7 +46,6 @@ def decode_access_token(token: str) -> Dict:
 
 
 def decode_refresh_token(token: str) -> Dict:
-    """Decode and validate refresh token."""
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "refresh":
@@ -62,7 +58,6 @@ def decode_refresh_token(token: str) -> Dict:
 
 
 def hash_refresh_token(refresh_token: str) -> str:
-    """Hash refresh token using bcrypt."""
     salt = bcrypt.gensalt()
     # Truncate refresh token to 72 bytes for bcrypt compatibility
     refresh_token_bytes = refresh_token.encode('utf-8')[:72]
@@ -71,7 +66,6 @@ def hash_refresh_token(refresh_token: str) -> str:
 
 
 def verify_refresh_token(refresh_token: str, stored_hash: str) -> bool:
-    """Verify refresh token against stored hash."""
     try:
         # Truncate refresh token to 72 bytes for bcrypt compatibility
         refresh_token_bytes = refresh_token.encode('utf-8')[:72]
@@ -82,7 +76,6 @@ def verify_refresh_token(refresh_token: str, stored_hash: str) -> bool:
 
 
 def is_token_expired(payload: Dict) -> bool:
-    """Check if token has expired."""
     exp = payload.get("exp")
     if not exp:
         return True

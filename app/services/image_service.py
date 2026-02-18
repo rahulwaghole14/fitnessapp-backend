@@ -33,7 +33,6 @@ class ImageService:
             )
 
     async def save_profile_image(self, file: UploadFile, user_id: int) -> str:
-        """Save profile image and return the file path"""
         self.validate_image(file)
 
         # Generate filename using user_id
@@ -67,7 +66,6 @@ class ImageService:
             raise HTTPException(status_code=500, detail=f"Failed to save image: {str(e)}")
 
     def delete_old_profile_image(self, old_image_path: Optional[str]) -> None:
-        """Delete old profile image if it exists"""
         if old_image_path:
             old_file_path = Path(old_image_path)
             if old_file_path.exists():

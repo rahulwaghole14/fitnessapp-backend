@@ -6,15 +6,12 @@ import calendar
 
 
 class FitnessActivityService:
-    """handling daily activity and automatic monthly/yearly summarization"""
 
     def __init__(self, db: Session):
         self.db = db
 
     def get_previous_month_info(self, current_date: date) -> Optional[Tuple[int, int]]:
-        """
-        Get previous month and year from current date
-        """
+
         if current_date.month == 1:
             return None  # No previous month for January
 
@@ -24,7 +21,6 @@ class FitnessActivityService:
         return previous_year, previous_month
 
     def check_daily_record_exists(self, user_id: int, activity_date: date) -> bool:
-        """Check if daily record already exists for user and date"""
         result = self.db.execute(text("""
                                       SELECT COUNT(*)
                                       FROM daily_activities
@@ -35,10 +31,7 @@ class FitnessActivityService:
 
     def upsert_daily_activity(self, user_id: int, activity_date: date, steps: int,
                               distance_km: float, calories: float, active_minutes: float) -> int:
-        """
-        Insert or update daily activity record
-        Returns record ID
-        """
+
         if self.check_daily_record_exists(user_id, activity_date):
             # Update existing record
             result = self.db.execute(text("""
@@ -78,7 +71,6 @@ class FitnessActivityService:
         return result.scalar()
 
     def get_monthly_daily_records(self, user_id: int, year: int, month: int) -> list:
-        """Get all daily records for a specific month"""
         result = self.db.execute(text("""
                                       SELECT steps, distance_km, calories, active_minutes
                                       FROM daily_activities
@@ -91,7 +83,6 @@ class FitnessActivityService:
         return result.fetchall()
 
     def check_monthly_summary_exists(self, user_id: int, year: int, month: int) -> bool:
-        """Check if monthly summary already exists"""
         result = self.db.execute(text("""
                                       SELECT COUNT(*)
                                       FROM user_monthly_activity
@@ -103,9 +94,7 @@ class FitnessActivityService:
     def create_monthly_summary(self, user_id: int, year: int, month: int,
                                total_steps: int, total_distance: float,
                                total_calories: float, total_active_minutes: float) -> int:
-        """
-        Create monthly summary record
-        """
+
         result = self.db.execute(text("""
                                       INSERT INTO user_monthly_activity
                                       (user_id, year, month, total_steps, total_distance_km,
@@ -126,7 +115,6 @@ class FitnessActivityService:
         return result.scalar()
 
     def delete_daily_records_for_month(self, user_id: int, year: int, month: int) -> int:
-        """Delete all daily records for a specific month"""
         result = self.db.execute(text("""
                                       DELETE
                                       FROM daily_activities
@@ -139,9 +127,7 @@ class FitnessActivityService:
         return result.rowcount
 
     def enforce_12_month_retention(self, user_id: int) -> int:
-        """
-        Enforce 12-month retention rule
-        """
+
         # Get count of monthly records
         result = self.db.execute(text("""
                                       SELECT COUNT(*)
@@ -172,7 +158,6 @@ class FitnessActivityService:
     #YEARLY AGGREGATION METHOD
 
     def check_yearly_summary_exists(self, user_id: int, year: int) -> bool:
-        """Check if yearly summary already exists"""
         result = self.db.execute(text("""
                                       SELECT COUNT(*)
                                       FROM user_yearly_activity
@@ -184,9 +169,7 @@ class FitnessActivityService:
     def create_yearly_summary(self, user_id: int, year: int,
                               total_steps: int, total_distance: float,
                               total_calories: float, total_active_minutes: float) -> int:
-        """
-        Create yearly summary record
-        """
+
         result = self.db.execute(text("""
                                       INSERT INTO user_yearly_activity
                                       (user_id, year, total_steps, total_distance_km,
@@ -206,7 +189,6 @@ class FitnessActivityService:
         return result.scalar()
 
     def get_yearly_monthly_records(self, user_id: int, year: int) -> list:
-        """Get all monthly records for a specific year"""
         result = self.db.execute(text("""
                                       SELECT total_steps, total_distance_km, total_calories, total_active_minutes
                                       FROM user_monthly_activity
@@ -228,9 +210,7 @@ class FitnessActivityService:
         return result.rowcount
 
     def should_trigger_yearly_aggregation(self, user_id: int, activity_date: date) -> bool:
-        """
-        Determine if yearly aggregation should be triggered
-        """
+
         # Get the most recent monthly record for this user
         result = self.db.execute(text("""
                                       SELECT year, month
@@ -259,9 +239,7 @@ class FitnessActivityService:
         return False
 
     def aggregate_and_store_yearly_summary(self, user_id: int, year: int) -> Optional[dict]:
-        """
-        Aggregate monthly data and store yearly summary
-        """
+
         # Get all monthly records for the year
         monthly_records = self.get_yearly_monthly_records(user_id, year)
 
@@ -306,9 +284,7 @@ class FitnessActivityService:
         }
 
     def aggregate_and_store_monthly_summary(self, user_id: int, year: int, month: int) -> Optional[dict]:
-        """
-        Aggregate daily data and store monthly summary
-        """
+
         # Get all daily records for the month
         daily_records = self.get_monthly_daily_records(user_id, year, month)
 
@@ -358,9 +334,7 @@ class FitnessActivityService:
         }
 
     def should_trigger_monthly_summary(self, user_id: int, activity_date: date) -> bool:
-        """
-        Determine if monthly summary should be triggered
-        """
+
         # Get all months that have daily records for this user
         result = self.db.execute(text("""
                                       SELECT DISTINCT EXTRACT(YEAR FROM date) as year, 
@@ -412,10 +386,7 @@ class FitnessActivityService:
         return True
 
     def get_user_monthly_activities(self, user_id: int) -> list:
-        """
-        Get all monthly activity records for a user
-        Returns list of monthly activity records
-        """
+
         result = self.db.execute(text("""
                                       SELECT id, year, month, total_steps, total_distance_km, total_calories, total_active_minutes, created_at
                                       FROM user_monthly_activity
@@ -426,7 +397,6 @@ class FitnessActivityService:
         return result.fetchall()
 
     def check_yearly_monthly_records_exist(self, user_id: int, year: int) -> bool:
-        """Check if any monthly records exist for a specific year"""
         result = self.db.execute(text("""
                                       SELECT COUNT(*)
                                       FROM user_monthly_activity
@@ -436,7 +406,6 @@ class FitnessActivityService:
         return result.scalar() > 0
 
     def check_all_q1_months_exist(self, user_id: int, year: int) -> bool:
-        """Check if all Q1 months (Jan, Feb, Mar) exist in monthly table for given year"""
         result = self.db.execute(text("""
                                       SELECT COUNT(DISTINCT month) 
                                       FROM user_monthly_activity 
@@ -447,7 +416,6 @@ class FitnessActivityService:
         return distinct_months == 3  # All 3 Q1 months must exist
 
     def check_any_q1_month_exists(self, user_id: int, year: int) -> bool:
-        """Check if any Q1 month (Jan, Feb, Mar) exists in monthly table for given year"""
         result = self.db.execute(text("""
                                       SELECT COUNT(*) 
                                       FROM user_monthly_activity 
@@ -458,7 +426,6 @@ class FitnessActivityService:
         return count > 0  # Any Q1 month exists
 
     def check_partial_q1_months_count(self, user_id: int, year: int) -> int:
-        """Get count of Q1 months (Jan, Feb, Mar) that exist in monthly table for given year"""
         result = self.db.execute(text("""
                                       SELECT COUNT(DISTINCT month) 
                                       FROM user_monthly_activity 

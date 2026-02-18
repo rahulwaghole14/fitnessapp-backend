@@ -25,7 +25,6 @@ def refresh_token(
     request: RefreshTokenRequest,
     db: Session = Depends(get_db)
 ) -> RefreshTokenResponse:
-    """Refresh access token using refresh token with JTI-based token rotation."""
     try:
         # Decode and validate the refresh token
         payload = decode_refresh_token(request.refresh_token)
@@ -96,7 +95,6 @@ def logout(
     request: RefreshTokenRequest,
     db: Session = Depends(get_db)
 ) -> Dict:
-    """Logout by revoking a specific refresh token."""
     try:
         # Decode and validate the refresh token
         payload = decode_refresh_token(request.refresh_token)
@@ -137,7 +135,6 @@ def logout_all(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Dict:
-    """Logout by revoking all refresh tokens for the current user."""
     try:
         # Revoke all refresh tokens for the user
         db_tokens = db.query(RefreshToken).filter(

@@ -25,7 +25,6 @@ image_service = ImageService()
 
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
     # Convert password to bytes and truncate to 72 bytes
     password_bytes = password.encode('utf-8')[:72]
     # Generate salt and hash
@@ -34,7 +33,6 @@ def hash_password(password: str) -> str:
     return hashed.decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed password."""
     try:
         # Convert password to bytes and truncate to 72 bytes
         password_bytes = plain_password.encode('utf-8')[:72]
@@ -236,9 +234,7 @@ async def upload_profile_image(
         current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
-    """
-    Upload or update authenticated user's profile image
-    """
+
 
     # Get current user
     user = db.query(User).filter(User.id == current_user_id).first()
@@ -280,9 +276,7 @@ async def get_user_profile(
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    """
-    Get authenticated user's profile data including profile image path
-    """
+
 
     # Return relative profile image path if exists
     profile_image_path: Optional[str] = None

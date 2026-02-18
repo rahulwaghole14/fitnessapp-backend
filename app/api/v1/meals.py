@@ -14,9 +14,7 @@ router = APIRouter()
 
 
 def get_meals_by_user_bmi(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    Get meals based on authenticated user's BMI.
-    """
+
     # Determine BMI value to use
     if current_user.bmi is None:
         bmi_value = 21.75  # Middle of Normal range (18.5-25)
@@ -48,7 +46,6 @@ def create_bmi_classification(
         bmi_data: BMIClassificationCreate,
         db: Session = Depends(get_db)
 ):
-    """Create a new BMI classification."""
     bmi_classification = BMIClassification(**bmi_data.dict())
     db.add(bmi_classification)
     db.commit()
@@ -57,7 +54,6 @@ def create_bmi_classification(
 
 
 def create_meal(meal_data: MealCreate, db: Session = Depends(get_db)):
-    """Create a new meal."""
     # Check if BMI category exists
     bmi_category = db.query(BMIClassification).filter(
         BMIClassification.id == meal_data.bmi_category_id

@@ -12,10 +12,7 @@ PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY")
 
 
 def send_otp_email(to_email: str, otp: str):
-    """
-    Send OTP email using EmailJS REST API.
-    EmailJS requires specific headers and parameter structure.
-    """
+
     if not all([SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY]):
         print("Warning: EmailJS credentials not configured. OTP not sent.")
         return

@@ -24,9 +24,7 @@ async def create_workout(
     workout_video: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    """
-    Create a new workout with image and video file uploads
-    """
+
     # Validate activity_level
     if activity_level not in ["beginner", "intermediate", "advanced"]:
         raise HTTPException(
@@ -90,15 +88,13 @@ async def create_workout(
 
 
 def get_workouts_for_user(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    Get workouts tailored for the authenticated user based on their profile
-    """
+
     # Validate user has required fields
     if not all([current_user.weight, current_user.weight_goal, current_user.activity_level]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User profile incomplete. Missing weight, weight_goal, or activity_level"
-        )
+        )   
 
     # Validate user activity_level
     if current_user.activity_level not in ["beginner", "intermediate", "advanced"]:

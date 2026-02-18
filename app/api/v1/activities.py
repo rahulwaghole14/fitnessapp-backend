@@ -22,9 +22,6 @@ def store_daily_activity(
         current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
-    """
-    Store user daily activity and automatically trigger monthly & Yearly summarization
-    """
 
     # Validate input data
     if data.steps < 0 or data.distance_km < 0 or data.calories < 0 or data.active_minutes < 0:
@@ -199,10 +196,7 @@ def store_daily_activity(
 
 #Get user daily activity
 def get_user_daily_activities(current_user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
-    """
-    Get all daily activities for the authenticated user
-    Returns daily activities ordered by date (newest first)
-    """
+
     try:
         # Get daily activities for the user (LINES 225-243)
         activities = db.query(DailyActivity).filter(
@@ -235,10 +229,7 @@ def get_weekly_analytics(
         current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
-    """
-    Get weekly aggregated activity data for a specific month.
-    Splits month into 4 weeks and aggregates data per week.
-    """
+
 
     # Verify user exists
     user = db.query(User).filter(User.id == current_user_id).first()
@@ -308,10 +299,7 @@ def get_user_monthly_activities(
         current_user_id: int = Depends(get_current_user_id),
         db: Session = Depends(get_db)
 ):
-    """
-    Get all monthly activity records for the authenticated user
-    Returns monthly activities ordered by year and month (newest first)
-    """
+
     # Initialize fitness service
     fitness_service = FitnessActivityService(db)
 
