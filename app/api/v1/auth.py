@@ -187,6 +187,13 @@ def login(user: LoginSchema,
     # Verify password using secure verification with backward compatibility
     if not verify_password(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+  
+    # Clean up any revoked refresh tokens for this admin before login
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == db_user.id,
+        RefreshToken.is_revoked == True
+    ).delete()
+    db.commit()
 
     # Generate JWT tokens
     access_token = create_access_token(db_user.id)
