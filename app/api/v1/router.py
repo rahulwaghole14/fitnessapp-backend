@@ -9,8 +9,8 @@ from .auth_tokens import refresh_token, logout, logout_all
 
 from .activities import (store_daily_activity, get_weekly_analytics,
                          get_user_daily_activities, get_user_monthly_activities,get_user_yearly_activities)
-from .meals import get_meals_by_user_bmi, create_bmi_classification, create_meal
-from .workouts import create_workout, get_workouts_for_user
+from .meals import get_meals_by_user_bmi
+from .workouts import get_workouts_for_user
 
 
 router = APIRouter()
@@ -43,10 +43,7 @@ router.get("/activity/yearly")(get_user_yearly_activities)  # New yearly activit
 
 # Meal endpoints
 router.get("/meals")(get_meals_by_user_bmi)
-router.post("/bmi-classification")(create_bmi_classification)
-router.post("/meals")(create_meal)
 
 # Workout endpoints
-router.post("/workouts")(create_workout)
 router.get("/workouts")(get_workouts_for_user)
 
