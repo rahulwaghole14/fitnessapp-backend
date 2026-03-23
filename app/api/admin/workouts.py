@@ -44,6 +44,20 @@ async def create_workout(
             detail="workout_category must be one of: gain, loose, maintain"
         )
 
+    # Check if workout already exists
+    existing_workout = db.query(Workout).filter(
+        Workout.title == title,
+        Workout.activity_level == activity_level,
+        Workout.duration == duration,
+        Workout.calorie_burn == calorie_burn
+    ).first()
+
+    if existing_workout:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Workout '{title}' with these specifications already exists (ID: {existing_workout.id})"
+        )
+
     # Create workout record first without media URLs
     workout_data = {
         "title": title,
@@ -84,8 +98,8 @@ async def create_workout(
             calories_burned=db_workout.calorie_burn,
             difficulty_level=db_workout.activity_level,
             category=db_workout.workout_category,
-            workout_image_url=db_workout.workout_image_url.replace("app/", "/") if db_workout.workout_image_url else None,
-            workout_video_url=db_workout.workout_video_url.replace("app/", "/") if db_workout.workout_video_url else None,
+            workout_image_url=db_workout.workout_image_url.replace("app/", "/", 1) if db_workout.workout_image_url and db_workout.workout_image_url.startswith("app/") else db_workout.workout_image_url,
+            workout_video_url=db_workout.workout_video_url.replace("app/", "/", 1) if db_workout.workout_video_url and db_workout.workout_video_url.startswith("app/") else db_workout.workout_video_url,
             created_at=db_workout.created_at or datetime.utcnow()
         )
 
@@ -148,8 +162,8 @@ async def get_workouts_paginated(
             calories_burned=workout.calorie_burn,
             difficulty_level=workout.activity_level,
             category=workout.workout_category,
-            workout_image_url=workout.workout_image_url.replace("app/", "/") if workout.workout_image_url else None,
-            workout_video_url=workout.workout_video_url.replace("app/", "/") if workout.workout_video_url else None,
+            workout_image_url=workout.workout_image_url.replace("app/", "/", 1) if workout.workout_image_url and workout.workout_image_url.startswith("app/") else workout.workout_image_url,
+            workout_video_url=workout.workout_video_url.replace("app/", "/", 1) if workout.workout_video_url and workout.workout_video_url.startswith("app/") else workout.workout_video_url,
             created_at=workout.created_at or datetime.utcnow()
         )
         workout_responses.append(workout_response)
@@ -192,8 +206,8 @@ async def get_workout_by_id(
         calories_burned=workout.calorie_burn,
         difficulty_level=workout.activity_level,
         category=workout.workout_category,
-        workout_image_url=workout.workout_image_url.replace("app/", "/") if workout.workout_image_url else None,
-        workout_video_url=workout.workout_video_url.replace("app/", "/") if workout.workout_video_url else None,
+        workout_image_url=workout.workout_image_url.replace("app/", "/", 1) if workout.workout_image_url and workout.workout_image_url.startswith("app/") else workout.workout_image_url,
+        workout_video_url=workout.workout_video_url.replace("app/", "/", 1) if workout.workout_video_url and workout.workout_video_url.startswith("app/") else workout.workout_video_url,
         created_at=workout.created_at or datetime.utcnow()
     )
 
@@ -248,23 +262,33 @@ async def update_workout(
     try:
         # Handle media file updates if provided
         if workout_image or workout_video:
+            print(f"Updating media for workout {workout_id}: image={workout_image is not None}, video={workout_video is not None}")
+            
             new_image_path, new_video_path = await media_service.save_workout_media(
                 image_file=workout_image,
                 video_file=workout_video,
                 workout_id=workout.id,
                 workout_title=workout.title
             )
+            
+            print(f"New media paths: image={new_image_path}, video={new_video_path}")
 
             # Update workout with new media paths
             if new_image_path is not None:
                 workout.workout_image_url = new_image_path
+                print(f"Updated image URL: {new_image_path}")
             if new_video_path is not None:
                 workout.workout_video_url = new_video_path
+                print(f"Updated video URL: {new_video_path}")
 
-            # Clean up old media files
+            # Clean up old media files from Cloudinary
+            # Delete old image if new image was uploaded
             if old_image_path and new_image_path:
+                print(f"Deleting old image: {old_image_path}")
                 media_service.delete_old_workout_media(old_image_path, None)
+            # Delete old video if new video was uploaded  
             if old_video_path and new_video_path:
+                print(f"Deleting old video: {old_video_path}")
                 media_service.delete_old_workout_media(None, old_video_path)
 
         db.commit()
@@ -278,8 +302,8 @@ async def update_workout(
             calories_burned=workout.calorie_burn,
             difficulty_level=workout.activity_level,
             category=workout.workout_category,
-            workout_image_url=workout.workout_image_url.replace("app/", "/") if workout.workout_image_url else None,
-            workout_video_url=workout.workout_video_url.replace("app/", "/") if workout.workout_video_url else None,
+            workout_image_url=workout.workout_image_url.replace("app/", "/", 1) if workout.workout_image_url and workout.workout_image_url.startswith("app/") else workout.workout_image_url,
+            workout_video_url=workout.workout_video_url.replace("app/", "/", 1) if workout.workout_video_url and workout.workout_video_url.startswith("app/") else workout.workout_video_url,
             created_at=workout.created_at or datetime.utcnow()
         )
 

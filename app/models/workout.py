@@ -1,9 +1,12 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint
 from datetime import datetime
 from app.core.database import Base
 
 class Workout(Base):
     __tablename__ = "workouts"
+    __table_args__ = (
+        UniqueConstraint('title', 'activity_level', name='unique_workout'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)

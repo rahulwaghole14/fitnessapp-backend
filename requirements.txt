@@ -11,3 +11,4 @@ aiofiles
 python-multipart
 bcrypt
 python-jose[cryptography]
+cloudinary

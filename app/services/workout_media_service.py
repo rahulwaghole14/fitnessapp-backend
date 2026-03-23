@@ -3,9 +3,21 @@ import uuid
 from typing import Optional, Tuple
 from fastapi import UploadFile, HTTPException
 from PIL import Image
-import aiofiles
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
 from pathlib import Path
 import io
+
+# Load environment variables
+load_dotenv()
+
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 
 # Allowed file extensions
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
@@ -15,10 +27,9 @@ MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50 MB
 
 class WorkoutMediaService:
     def __init__(self):
-        self.image_upload_dir = Path("app/media/workout_images")
-        self.video_upload_dir = Path("app/media/workout_videos")
-        self.image_upload_dir.mkdir(parents=True, exist_ok=True)
-        self.video_upload_dir.mkdir(parents=True, exist_ok=True)
+        self.base_folder = os.getenv("CLOUDINARY_BASE_FOLDER", "fitness-app")
+        self.image_upload_folder = f"{self.base_folder}/workouts/images"
+        self.video_upload_folder = f"{self.base_folder}/workouts/videos"
 
     def validate_image(self, file: UploadFile) -> None:
         if not file.filename:
@@ -61,13 +72,14 @@ class WorkoutMediaService:
     async def save_workout_image(self, file: UploadFile, workout_id: int, workout_title: str) -> str:
         self.validate_image(file)
 
-        # Generate filename using workout_id and workout_title
+        # Generate unique public ID for Cloudinary (add timestamp to avoid overwriting)
+        import time
         file_extension = Path(file.filename).suffix.lower()
         # Sanitize workout title for filename
         sanitized_title = "".join(c for c in workout_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         sanitized_title = sanitized_title.replace(' ', '_')
-        filename = f"{workout_id}_{sanitized_title}{file_extension}"
-        file_path = self.image_upload_dir / filename
+        timestamp = int(time.time())
+        public_id = f"{workout_id}_{sanitized_title}_{timestamp}"
 
         try:
             # Read and validate image content
@@ -82,28 +94,33 @@ class WorkoutMediaService:
             # Reset file pointer
             await file.seek(0)
 
-            # Save file (this will overwrite if it exists)
-            async with aiofiles.open(file_path, 'wb') as f:
-                await f.write(content)
+            # Upload to Cloudinary (no overwrite to create new image)
+            upload_result = cloudinary.uploader.upload(
+                file.file,
+                public_id=public_id,
+                folder=self.image_upload_folder,
+                resource_type="image",
+                format=file_extension.replace(".", ""),
+                overwrite=False
+            )
 
-            return f"app/media/workout_images/{filename}"
+            # Return the secure URL
+            return upload_result["secure_url"]
 
         except Exception as e:
-            # Clean up if file was created but error occurred
-            if file_path.exists():
-                file_path.unlink()
-            raise HTTPException(status_code=500, detail=f"Failed to save image: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload image to Cloudinary: {str(e)}")
 
     async def save_workout_video(self, file: UploadFile, workout_id: int, workout_title: str) -> str:
         self.validate_video(file)
 
-        # Generate filename using workout_id and workout_title
+        # Generate unique public ID for Cloudinary (add timestamp to avoid overwriting)
+        import time
         file_extension = Path(file.filename).suffix.lower()
         # Sanitize workout title for filename
         sanitized_title = "".join(c for c in workout_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         sanitized_title = sanitized_title.replace(' ', '_')
-        filename = f"{workout_id}_{sanitized_title}{file_extension}"
-        file_path = self.video_upload_dir / filename
+        timestamp = int(time.time())
+        public_id = f"{workout_id}_{sanitized_title}_{timestamp}"
 
         try:
             # Read video content
@@ -112,17 +129,21 @@ class WorkoutMediaService:
             # Reset file pointer
             await file.seek(0)
 
-            # Save file (this will overwrite if it exists)
-            async with aiofiles.open(file_path, 'wb') as f:
-                await f.write(content)
+            # Upload to Cloudinary (no overwrite to create new video)
+            upload_result = cloudinary.uploader.upload(
+                file.file,
+                public_id=public_id,
+                folder=self.video_upload_folder,
+                resource_type="video",
+                format=file_extension.replace(".", ""),
+                overwrite=False
+            )
 
-            return f"app/media/workout_videos/{filename}"
+            # Return the secure URL
+            return upload_result["secure_url"]
 
         except Exception as e:
-            # Clean up if file was created but error occurred
-            if file_path.exists():
-                file_path.unlink()
-            raise HTTPException(status_code=500, detail=f"Failed to save video: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload video to Cloudinary: {str(e)}")
 
     async def save_workout_media(self, image_file: Optional[UploadFile] = None, 
                                 video_file: Optional[UploadFile] = None,
@@ -139,21 +160,29 @@ class WorkoutMediaService:
 
         return image_path, video_path
 
-    def delete_old_workout_media(self, old_image_path: Optional[str], old_video_path: Optional[str]) -> None:
-        if old_image_path:
-            old_file_path = Path(old_image_path)
-            if old_file_path.exists():
-                try:
-                    old_file_path.unlink()
-                except Exception:
-                    # Log error but don't fail the operation
-                    pass
+    def delete_old_workout_media(self, old_image_url: Optional[str], old_video_url: Optional[str]) -> None:
+        # Delete old image from Cloudinary
+        if old_image_url and "cloudinary" in old_image_url:
+            try:
+                # Extract public_id from Cloudinary URL
+                parts = old_image_url.split('/')
+                if len(parts) >= 8:
+                    upload_index = parts.index('upload')
+                    folder_and_public_id = '/'.join(parts[upload_index+2:])
+                    public_id = folder_and_public_id.rsplit('.', 1)[0]
+                    cloudinary.uploader.destroy(public_id, resource_type="image")
+            except Exception:
+                pass
 
-        if old_video_path:
-            old_file_path = Path(old_video_path)
-            if old_file_path.exists():
-                try:
-                    old_file_path.unlink()
-                except Exception:
-                    # Log error but don't fail the operation
-                    pass
+        # Delete old video from Cloudinary
+        if old_video_url and "cloudinary" in old_video_url:
+            try:
+                # Extract public_id from Cloudinary URL
+                parts = old_video_url.split('/')
+                if len(parts) >= 8:
+                    upload_index = parts.index('upload')
+                    folder_and_public_id = '/'.join(parts[upload_index+2:])
+                    public_id = folder_and_public_id.rsplit('.', 1)[0]
+                    cloudinary.uploader.destroy(public_id, resource_type="video")
+            except Exception:
+                pass

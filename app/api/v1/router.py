@@ -11,6 +11,8 @@ from .activities import (store_daily_activity, get_weekly_analytics,
                          get_user_daily_activities, get_user_monthly_activities,get_user_yearly_activities)
 from .meals import get_meals_by_user_bmi
 from .workouts import get_workouts_for_user
+from .subscription import get_all_plans, get_plan_id
+from app.schemas.subscription import Plan
 
 
 router = APIRouter()
@@ -46,4 +48,8 @@ router.get("/meals")(get_meals_by_user_bmi)
 
 # Workout endpoints
 router.get("/workouts")(get_workouts_for_user)
+
+#Subscription Endpoints
+router.get("/subscription-plans", response_model=list[Plan])(get_all_plans)
+router.get("/subscription-plans/{plan_id}", response_model=Plan)(get_plan_id)
 
