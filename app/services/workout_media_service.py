@@ -22,7 +22,7 @@ cloudinary.config(
 # Allowed file extensions
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv"}
-MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 5 MB
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  #10 MB
 MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50 MB
 
 class WorkoutMediaService:
@@ -136,7 +136,9 @@ class WorkoutMediaService:
                 folder=self.video_upload_folder,
                 resource_type="video",
                 format=file_extension.replace(".", ""),
-                overwrite=False
+                overwrite=False,
+                timeout=60,  # 60 second timeout
+                chunk_size=6000000  # 6MB chunks for large files
             )
 
             # Return the secure URL

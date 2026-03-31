@@ -199,13 +199,19 @@ def forgot_password_reset_password(data: ForgotPasswordResetSchema, db: Session 
 
     user.password = hash_password(data.new_password)
 
+    # Revoke all existing refresh tokens for this user (logout from all devices)
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id,
+        RefreshToken.is_revoked == False
+    ).update({"is_revoked": True})
+
     # Clear OTP and timestamp after successful password reset
     user.otp = None
     user.otp_created_at = None
 
     db.commit()
 
-    return {"message": "Password reset successfully. You can now login with your new password."}
+    return {"message": "Password reset successfully. All sessions have been logged out. Please login again."}
 
 
 # LOGIN

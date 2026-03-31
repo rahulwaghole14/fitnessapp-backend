@@ -11,9 +11,11 @@ from .activities import (store_daily_activity, get_weekly_analytics,
                          get_user_daily_activities, get_user_monthly_activities,get_user_yearly_activities)
 from .meals import get_meals_by_user_bmi
 from .workouts import get_workouts_for_user
-from .subscription import get_all_plans, get_plan_id
-from app.schemas.subscription import Plan
+from .subscription import (get_all_plans, get_plan_id, create_subscription_order, handle_razorpay_webhook,
+                           get_payment_history ,get_user_subscription)
 
+from app.schemas.subscription import Plan
+from app.schemas.payment import OrderResponse, PaymentHistory
 
 router = APIRouter()
 
@@ -52,4 +54,8 @@ router.get("/workouts")(get_workouts_for_user)
 #Subscription Endpoints
 router.get("/subscription-plans", response_model=list[Plan])(get_all_plans)
 router.get("/subscription-plans/{plan_id}", response_model=Plan)(get_plan_id)
+router.post("/subscriptions/order", response_model=OrderResponse)(create_subscription_order)
+router.post("/subscriptions/payment")(handle_razorpay_webhook)
+router.get("/subscriptions/payment-history", response_model=list[PaymentHistory])(get_payment_history)
+router.get("/subscriptions/user-subscription", response_model=list[dict])(get_user_subscription)
 

@@ -94,6 +94,7 @@ async def get_users_paginated(
     for user in users:
         user_response = UserResponse(
             id=user.id,
+            username=user.username,
             email=user.email,
             gender=user.gender,
             age=user.age,
@@ -141,6 +142,7 @@ async def get_user_by_id(
 
     return UserResponse(
         id=user.id,
+        username=user.username,  # Add missing username field
         email=user.email,
         gender=user.gender,
         age=user.age,
@@ -220,6 +222,7 @@ async def update_user(
 
         return UserResponse(
             id=user.id,
+            username=user.username,  # Add missing username field
             email=user.email,
             gender=user.gender,
             age=user.age,
@@ -228,7 +231,7 @@ async def update_user(
             bmi=user.bmi,
             weight_goal=user.weight_goal,
             activity_level=user.activity_level,
-            profile_image=user.profile_image.replace("app/", "/") if user.profile_image else None,
+            profile_image=user.profile_image,  # Cloudinary URL is already public
             is_verified=user.is_verified,
             created_at=datetime.utcnow(),  # Use current time since User model doesn't have created_at
             is_blocked=False
@@ -247,15 +250,55 @@ async def delete_user(
         user_id: int,
         db: Session = Depends(get_db),
         current_admin: Admin = Depends(get_current_admin)
-) -> bool:
+) -> dict:
 
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Delete the user (this will cascade delete related records if properly configured)
+    # Check if user has active subscription plan
+    # Note: You'll need to import your subscription model
+    from app.models.subscription import Subscription  # Adjust based on your actual model
+    
+    active_subscription = db.query(Subscription).filter(
+        Subscription.user_id == user_id,
+        Subscription.status == "active",
+        Subscription.end_date >= datetime.utcnow()
+    ).first()
+    
+    if active_subscription:
+        raise HTTPException(
+            status_code=400, 
+            detail="User has an active subscription plan currently, can't delete user"
+        )
+
+    # Delete user profile image from Cloudinary if exists
+    if user.profile_image:
+        try:
+            import cloudinary
+            import cloudinary.uploader
+            import re
+            
+            # Extract public_id from Cloudinary URL
+            # Cloudinary URL format: https://res.cloudinary.com/your_cloud_name/image/upload/v1234567890/public_id.jpg
+            url_pattern = r'/upload/v\d+/(.+?)\.'
+            match = re.search(url_pattern, user.profile_image)
+            
+            if match:
+                public_id = match.group(1)
+                # Delete image from Cloudinary
+                cloudinary.uploader.destroy(public_id)
+                print(f"Successfully deleted profile image: {public_id}")
+            else:
+                print(f"Could not extract public_id from URL: {user.profile_image}")
+                
+        except Exception as e:
+            print(f"Failed to delete profile image from Cloudinary: {str(e)}")
+            # Continue with user deletion even if image deletion fails
+
+    # Delete user (this will cascade delete related records if properly configured)
     db.delete(user)
     db.commit()
 
-    return True
+    return {"message": f"User {user_id} deleted successfully"}

@@ -11,8 +11,9 @@ import random
 
 from app.models.admin import Admin, AdminRefreshToken
 from app.core.database import get_db
-from .schemas import AdminRegister, AdminLogin, AdminResponse, TokenResponse, AdminForgotPasswordEmailSchema, AdminForgotPasswordVerifySchema, AdminForgotPasswordResetSchema
+from .schemas import AdminRegister, AdminLogin, AdminResponse, TokenResponse, AdminForgotPasswordEmailSchema, AdminForgotPasswordVerifySchema, AdminForgotPasswordResetSchema, AdminChangePasswordSchema
 from app.utils.emailjs_utils import send_otp_email
+from .dependencies import get_current_admin
 
 # Load environment variables
 load_dotenv()
@@ -369,10 +370,56 @@ async def admin_forgot_password_reset(
     # Update password
     admin.password_hash = get_password_hash(admin_data.new_password)
 
+    # Revoke all existing refresh tokens for this admin (logout from all devices)
+    db.query(AdminRefreshToken).filter(
+        AdminRefreshToken.admin_id == admin.id,
+        AdminRefreshToken.is_revoked == False
+    ).update({"is_revoked": True})
+
     # Clear OTP and timestamp after successful password reset
     admin.otp = None
     admin.otp_created_at = None
 
     db.commit()
 
-    return {"message": "Password reset successfully. You can now login with your new password."}
+    return {"message": "Password reset successfully. All sessions have been logged out. Please login again."}
+
+
+# ADMIN CHANGE PASSWORD
+async def admin_change_password(
+        password_data: AdminChangePasswordSchema,
+        current_admin: Admin = Depends(get_current_admin),
+        db: Session = Depends(get_db)
+):
+    """
+    Change admin password with JWT authentication.
+    Verifies old password before updating to new password.
+    """
+    # Get current admin from database (fresh check)
+    admin = db.query(Admin).filter(Admin.id == current_admin.id).first()
+    
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    # Verify old password
+    if not verify_password(password_data.old_password, admin.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Check if new password is same as old password
+    if verify_password(password_data.new_password, admin.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from current password"
+        )
+    
+    # Update password with new hashed password
+    admin.password_hash = get_password_hash(password_data.new_password)
+    db.commit()
+    
+    return {"message": "Password changed successfully"}

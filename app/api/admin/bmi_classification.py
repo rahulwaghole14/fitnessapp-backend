@@ -2,6 +2,7 @@ from fastapi import HTTPException, status, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from math import ceil
+from datetime import datetime
 
 from app.core.database import get_db
 from app.models.bmi_classification import BMIClassification
@@ -56,7 +57,13 @@ def create_bmi_classification(
     db.commit()
     db.refresh(bmi_classification)
     
-    return bmi_classification
+    return BMIClassificationResponse(
+        id=bmi_classification.id,
+        category_name=bmi_classification.category_name,
+        min_bmi=bmi_classification.min_bmi,
+        max_bmi=bmi_classification.max_bmi,
+        created_at=bmi_classification.created_at or datetime.utcnow()
+    )
 
 
 def get_bmi_classifications_paginated(
@@ -82,7 +89,7 @@ def get_bmi_classifications_paginated(
             category_name=bmi.category_name,
             min_bmi=bmi.min_bmi,
             max_bmi=bmi.max_bmi,
-            created_at=bmi.created_at
+            created_at=bmi.created_at or datetime.utcnow()
         )
         bmi_classification_responses.append(bmi_response)
     
@@ -121,7 +128,13 @@ def get_bmi_classification_by_id(
             detail="BMI classification not found"
         )
     
-    return bmi_classification
+    return BMIClassificationResponse(
+        id=bmi_classification.id,
+        category_name=bmi_classification.category_name,
+        min_bmi=bmi_classification.min_bmi,
+        max_bmi=bmi_classification.max_bmi,
+        created_at=bmi_classification.created_at or datetime.utcnow()
+    )
 
 
 def update_bmi_classification(
@@ -186,7 +199,13 @@ def update_bmi_classification(
     db.commit()
     db.refresh(bmi_classification)
     
-    return bmi_classification
+    return BMIClassificationResponse(
+        id=bmi_classification.id,
+        category_name=bmi_classification.category_name,
+        min_bmi=bmi_classification.min_bmi,
+        max_bmi=bmi_classification.max_bmi,
+        created_at=bmi_classification.created_at or datetime.utcnow()
+    )
 
 
 def delete_bmi_classification(

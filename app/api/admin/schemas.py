@@ -21,6 +21,7 @@ class AdminRegister(AdminBase):
     password: str
 
 class AdminLogin(AdminBase):
+    email:EmailStr
     password: str
 
 # Admin Forgot Password Schemas
@@ -34,6 +35,11 @@ class AdminForgotPasswordVerifySchema(BaseModel):
 class AdminForgotPasswordResetSchema(BaseModel):
     email: EmailStr
     otp: str
+    new_password: str
+
+# Admin Change Password Schema
+class AdminChangePasswordSchema(BaseModel):
+    old_password: str
     new_password: str
 
 class AdminResponse(AdminBase):
@@ -87,6 +93,7 @@ class UserBase(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    username: str
     is_verified: bool
     created_at: datetime
     is_blocked: Optional[bool] = False
@@ -249,3 +256,16 @@ class Plan(PlanBase):
                 return [str(v)]
         return [str(v)]
 
+#Dashboard Schemas
+class OverviewResponse(BaseModel):
+    total_users: int
+    total_workouts: int
+    total_meals: int
+    active_subscriptions: int
+
+class UserResponsedash(BaseModel):
+    id: int
+    username: str
+    email: str
+    activity_level: Optional[str] = None
+    gender: Optional[str] = None
