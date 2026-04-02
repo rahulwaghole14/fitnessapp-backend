@@ -5,16 +5,19 @@ from typing import Optional, List
 from math import ceil
 import bcrypt
 from datetime import datetime
+from pydantic import BaseModel
 
 from app.models.user import User
 from app.models.admin import Admin
+from app.models.subscription import Subscription
+from app.models.subscription_plans import Plan
 from app.core.database import get_db
 from app.services.image_service import ImageService
 
 from .dependencies import get_current_admin
 from .schemas import (
     UserRegisterResponse, UserResponse, UserUpdate, UserBlockResponse, PaginatedResponse, PaginationInfo,
-    UserRegisterSchema
+    UserRegisterSchema, UserSubscriptionResponse, UserSubscriptionUpdate
 )
 
 # Initialize image service
@@ -302,3 +305,189 @@ async def delete_user(
     db.commit()
 
     return {"message": f"User {user_id} deleted successfully"}
+
+
+async def get_user_subscriptions_paginated(
+        skip: int = Query(0, ge=0, description="Number of records to skip"),
+        limit: int = Query(10, ge=1, le=1000, description="Maximum records to return"),
+        search: Optional[str] = Query(None, description="Search term for username or plan name"),
+        status: Optional[str] = Query(None, description="Filter by subscription status"),
+        db: Session = Depends(get_db),
+        current_admin: Admin = Depends(get_current_admin)
+) -> dict:
+
+    # Build query with joins
+    query = db.query(
+        Subscription.id,
+        Subscription.user_id,
+        User.username.label('username'),
+        Subscription.plan_id,
+        Plan.name.label('plan_name'),
+        Subscription.start_date,
+        Subscription.end_date,
+        Subscription.status,
+        Subscription.auto_renew,
+        Subscription.created_at,
+        Subscription.updated_at
+    ).join(
+        User, Subscription.user_id == User.id
+    ).join(
+        Plan, Subscription.plan_id == Plan.id
+    )
+
+    # Apply filters
+    if search:
+        query = query.filter(
+            and_(
+                User.username.ilike(f"%{search}%"),
+                Plan.name.ilike(f"%{search}%")
+            )
+        )
+
+    if status:
+        query = query.filter(Subscription.status == status)
+
+    # Get total count for pagination metadata
+    total_count = query.count()
+
+    # Apply pagination
+    subscriptions = query.offset(skip).limit(limit).all()
+
+    # Convert to response format
+    subscription_responses = []
+    for sub in subscriptions:
+        subscription_response = UserSubscriptionResponse(
+            id=sub.id,
+            user_id=sub.user_id,
+            username=sub.username,
+            # plan_id=sub.plan_id,
+            plan_name=sub.plan_name,
+            start_date=sub.start_date,
+            end_date=sub.end_date,
+            status=sub.status,
+            auto_renew=sub.auto_renew,
+            created_at=sub.created_at,
+            # updated_at=sub.updated_at
+        )
+        subscription_responses.append(subscription_response)
+
+    # Calculate pagination metadata
+    total_pages = ceil(total_count / limit)
+    current_page = skip // limit + 1
+
+    return {
+        "subscriptions": subscription_responses,
+        "pagination": {
+            "current_page": current_page,
+            "page_size": limit,
+            "total_items": total_count,
+            "total_pages": total_pages,
+            "has_next": current_page < total_pages,
+            "has_prev": current_page > 1,
+            "next_skip": skip + limit if current_page < total_pages else None,
+            "prev_skip": skip - limit if current_page > 1 else None
+        }
+    }
+
+
+async def get_user_subscription_by_id(
+        subscription_id: int,
+        db: Session = Depends(get_db),
+        current_admin: Admin = Depends(get_current_admin)
+) -> UserSubscriptionResponse:
+
+    # Query with joins
+    subscription = db.query(
+        Subscription.id,
+        Subscription.user_id,
+        User.username.label('username'),
+        Subscription.plan_id,
+        Plan.name.label('plan_name'),
+        Subscription.start_date,
+        Subscription.end_date,
+        Subscription.status,
+        Subscription.auto_renew,
+        Subscription.created_at,
+        Subscription.updated_at
+    ).join(
+        User, Subscription.user_id == User.id
+    ).join(
+        Plan, Subscription.plan_id == Plan.id
+    ).filter(
+        Subscription.id == subscription_id
+    ).first()
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="User subscription not found")
+
+    return UserSubscriptionResponse(
+        id=subscription.id,
+        user_id=subscription.user_id,
+        username=subscription.username,
+        # plan_id=subscription.plan_id,
+        plan_name=subscription.plan_name,
+        start_date=subscription.start_date,
+        end_date=subscription.end_date,
+        status=subscription.status,
+        auto_renew=subscription.auto_renew,
+        created_at=subscription.created_at,
+        # updated_at=subscription.updated_at
+    )
+
+
+async def update_user_subscription(
+        subscription_id: int,
+        subscription_update: UserSubscriptionUpdate,
+        db: Session = Depends(get_db),
+        current_admin: Admin = Depends(get_current_admin)
+) -> UserSubscriptionResponse:
+
+    # Get existing subscription
+    subscription = db.query(Subscription).filter(Subscription.id == subscription_id).first()
+    
+    if not subscription:
+        raise HTTPException(status_code=404, detail="User subscription not found")
+
+    # Update status
+    subscription.status = subscription_update.status
+
+    # Update the updated_at timestamp
+    subscription.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(subscription)
+
+    # Get updated data with joins for response
+    updated_subscription = db.query(
+        Subscription.id,
+        Subscription.user_id,
+        User.username.label('username'),
+        Subscription.plan_id,
+        Plan.name.label('plan_name'),
+        Subscription.start_date,
+        Subscription.end_date,
+        Subscription.status,
+        Subscription.auto_renew,
+        Subscription.created_at,
+        Subscription.updated_at
+    ).join(
+        User, Subscription.user_id == User.id
+    ).join(
+        Plan, Subscription.plan_id == Plan.id
+    ).filter(
+        Subscription.id == subscription_id
+    ).first()
+
+    return UserSubscriptionResponse(
+        id=updated_subscription.id,
+        user_id=updated_subscription.user_id,
+        username=updated_subscription.username,
+        # plan_id=updated_subscription.plan_id,
+        plan_name=updated_subscription.plan_name,
+        start_date=updated_subscription.start_date,
+        end_date=updated_subscription.end_date,
+        status=updated_subscription.status,
+        auto_renew=updated_subscription.auto_renew,
+        created_at=updated_subscription.created_at,
+        # updated_at=updated_subscription.updated_at
+    )

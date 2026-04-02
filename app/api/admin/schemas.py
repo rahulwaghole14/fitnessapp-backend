@@ -256,6 +256,24 @@ class Plan(PlanBase):
                 return [str(v)]
         return [str(v)]
 
+# User Subscription Schemas
+class UserSubscriptionResponse(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    # plan_id: int
+    plan_name: str
+    start_date: datetime
+    end_date: datetime
+    status: str
+    auto_renew: bool
+    created_at: datetime
+    # updated_at: Optional[datetime] = None
+
+# Update subscription status schema
+class UserSubscriptionUpdate(BaseModel):
+    status: str
+
 #Dashboard Schemas
 class OverviewResponse(BaseModel):
     total_users: int

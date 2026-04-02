@@ -12,7 +12,8 @@ from .schemas import (
     MealResponse, MealCreate, MealUpdate,
     BMIClassificationResponse, BMIClassificationCreate, BMIClassificationUpdate,
     PaginatedResponse, PaginationInfo, AdminRefreshTokenRequest, AdminLogoutRequest, AdminRefreshTokenResponse,
-    Plan, PlanCreate, PlanUpdate,OverviewResponse,UserResponsedash
+    Plan, PlanCreate, PlanUpdate, UserSubscriptionResponse,
+    OverviewResponse, UserResponsedash
 )
 from .auth import register_admin, login_admin, admin_forgot_password_send_otp, admin_forgot_password_verify_otp, admin_forgot_password_reset, admin_change_password
 from .auth_tokens import refresh_admin_access_token, logout_admin
@@ -31,6 +32,7 @@ from .bmi_classification import (
     update_bmi_classification, delete_bmi_classification
 )
 from.subscription_plans import create_plan, get_plans, get_plan_by_id, update_plan, delete_plan
+from .users import get_user_subscriptions_paginated, get_user_subscription_by_id, update_user_subscription
 
 
 admin_router = APIRouter()
@@ -60,6 +62,11 @@ admin_router.get("/users", response_model=dict)(get_users_paginated)
 admin_router.get("/user/{user_id}", response_model=UserResponse)(get_user_by_id)
 admin_router.put("/update-user/{user_id}", response_model=UserResponse)(update_user)
 admin_router.delete("/user/{user_id}", response_model=dict)(delete_user)
+
+# User Subscriptions Management Routes
+admin_router.get("/user-subscriptions", response_model=dict)(get_user_subscriptions_paginated)
+admin_router.get("/user-subscription/{subscription_id}", response_model=UserSubscriptionResponse)(get_user_subscription_by_id)
+admin_router.put("/update-user-subscription/{subscription_id}", response_model=UserSubscriptionResponse)(update_user_subscription)
 
 
 # Workout Management Routes
@@ -92,3 +99,4 @@ admin_router.get("/plans", response_model=list[Plan])(get_plans)
 admin_router.get("/plan/{plan_id}", response_model=Plan)(get_plan_by_id)
 admin_router.put("/update-plan/{plan_id}", response_model=Plan)(update_plan)
 admin_router.delete("/delete-plan/{plan_id}")(delete_plan)
+
