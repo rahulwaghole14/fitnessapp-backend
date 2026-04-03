@@ -4,10 +4,6 @@ from datetime import datetime
 from app.core.database import Base
 
 class Admin(Base):
-    """
-    Admin model for system administration.
-    Only one admin record is allowed in the database.
-    """
     __tablename__ = "admins"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -18,15 +14,14 @@ class Admin(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     otp = Column(String, nullable=True)
     otp_created_at = Column(DateTime, nullable=True)  # Track OTP creation time for expiration
+    profile_image = Column(String, nullable=True)  # Admin profile image path
+    bio = Column(String, nullable=True)  # Admin bio/description
 
     def __repr__(self):
         return f"<Admin(id={self.id}, email={self.email}, is_active={self.is_active})>"
 
 
 class AdminRefreshToken(Base):
-    """
-    Admin refresh token model for JWT token management.
-    """
     __tablename__ = "admin_refresh_tokens"
 
     id = Column(Integer, primary_key=True, index=True)

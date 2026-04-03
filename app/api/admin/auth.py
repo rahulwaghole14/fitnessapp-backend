@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
@@ -12,8 +12,19 @@ import random
 from app.models.admin import Admin, AdminRefreshToken
 from app.core.database import get_db
 from .schemas import AdminRegister, AdminLogin, AdminResponse, TokenResponse, AdminForgotPasswordEmailSchema, AdminForgotPasswordVerifySchema, AdminForgotPasswordResetSchema, AdminChangePasswordSchema
+from pydantic import BaseModel
+from pydantic import EmailStr
+
+class AdminProfileUpdateSchema(BaseModel):
+    profile_image: Optional[str] = None
+    bio: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+from .schemas import AdminProfileUpdateSchema
 from app.utils.emailjs_utils import send_otp_email
 from .dependencies import get_current_admin
+from app.services.image_service import AdminImageService
 
 # Load environment variables
 load_dotenv()
@@ -423,3 +434,111 @@ async def admin_change_password(
     db.commit()
     
     return {"message": "Password changed successfully"}
+
+
+# ADMIN PROFILE MANAGEMENT
+async def get_admin_profile(
+        current_admin: Admin = Depends(get_current_admin),
+        db: Session = Depends(get_db)
+):
+
+    # Get fresh admin data from database
+    admin = db.query(Admin).filter(Admin.id == current_admin.id).first()
+    
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    return {
+        "id": admin.id,
+        "username": admin.username,
+        "email": admin.email,
+        "profile_image": admin.profile_image,
+        "bio": admin.bio,
+        "is_active": admin.is_active,
+        "created_at": admin.created_at
+    }
+
+
+async def update_admin_profile(
+        profile_image: UploadFile = File(None),
+        name: Optional[str] = Form(None),
+        email: Optional[str] = Form(None),
+        bio: Optional[str] = Form(None),
+        current_admin: Admin = Depends(get_current_admin),
+        db: Session = Depends(get_db)
+):
+    """
+    Update admin profile with optional image upload using form data.
+    """
+    # Get fresh admin data from database
+    admin = db.query(Admin).filter(Admin.id == current_admin.id).first()
+    
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    # Initialize admin image service
+    admin_image_service = AdminImageService()
+    
+    # Store old image path for cleanup
+    old_image_path = admin.profile_image
+    
+    try:
+        # Handle image upload if provided
+        if profile_image:
+            # Upload new profile image
+            new_image_path = await admin_image_service.save_profile_image(profile_image, admin.id)
+            admin.profile_image = new_image_path
+            
+            # Delete old image from Cloudinary if it exists
+            if old_image_path:
+                admin_image_service.delete_old_profile_image(old_image_path)
+        
+        # Update other fields from form data
+        if name is not None:
+            admin.username = name
+        
+        if bio is not None:
+            admin.bio = bio
+        
+        if email is not None:
+            # Check if email is already taken by another admin
+            existing_admin = db.query(Admin).filter(
+                Admin.email == email,
+                Admin.id != admin.id
+            ).first()
+            if existing_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email is already taken by another admin"
+                )
+            admin.email = email
+        
+        db.commit()
+        db.refresh(admin)
+        
+        return {
+            "message": "Profile updated successfully",
+            "profile": {
+                "id": admin.id,
+                "username": admin.username,
+                "email": admin.email,
+                "profile_image": admin.profile_image,
+                "bio": admin.bio,
+                "is_active": admin.is_active,
+                "created_at": admin.created_at
+            }
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Rollback database changes on error
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")

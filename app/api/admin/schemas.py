@@ -46,6 +46,15 @@ class AdminResponse(AdminBase):
     id: int
     is_active: bool
     created_at: datetime
+    profile_image: Optional[str] = None
+    bio: Optional[str] = None
+
+# Admin Profile Update Schema
+class AdminProfileUpdateSchema(BaseModel):
+    profile_image: Optional[str] = None
+    bio: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
 
 # Token Schema
 class TokenResponse(BaseModel):

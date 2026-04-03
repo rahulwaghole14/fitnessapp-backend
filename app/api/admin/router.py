@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.models.admin import Admin
 from .schemas import (
     AdminRegister, AdminLogin, AdminResponse, TokenResponse,
-    AdminForgotPasswordEmailSchema, AdminForgotPasswordVerifySchema, AdminForgotPasswordResetSchema, AdminChangePasswordSchema,
+    AdminForgotPasswordEmailSchema, AdminForgotPasswordVerifySchema, AdminForgotPasswordResetSchema, AdminChangePasswordSchema, AdminProfileUpdateSchema,
     UserRegisterSchema, UserRegisterResponse, UserResponse, UserUpdate, UserBlockResponse,
     WorkoutResponse, WorkoutCreate, WorkoutUpdate,
     MealResponse, MealCreate, MealUpdate,
@@ -15,7 +15,7 @@ from .schemas import (
     Plan, PlanCreate, PlanUpdate, UserSubscriptionResponse,
     OverviewResponse, UserResponsedash
 )
-from .auth import register_admin, login_admin, admin_forgot_password_send_otp, admin_forgot_password_verify_otp, admin_forgot_password_reset, admin_change_password
+from .auth import register_admin, login_admin, admin_forgot_password_send_otp, admin_forgot_password_verify_otp, admin_forgot_password_reset, admin_change_password, get_admin_profile, update_admin_profile
 from .auth_tokens import refresh_admin_access_token, logout_admin
 from .dashboard import get_overview, get_all_users
 from .users import (
@@ -50,6 +50,10 @@ admin_router.post("/auth/forgot-password/reset")(admin_forgot_password_reset)
 
 # Admin Change Password Route (JWT Protected)
 admin_router.put("/auth/change-password")(admin_change_password)
+
+# Admin Profile Routes (JWT Protected)
+admin_router.get("/profile")(get_admin_profile)
+admin_router.put("/profile")(update_admin_profile)
 
 
 # Dashboard Routes

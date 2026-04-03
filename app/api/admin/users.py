@@ -106,7 +106,8 @@ async def get_users_paginated(
             bmi=user.bmi,
             weight_goal=user.weight_goal,
             activity_level=user.activity_level,
-            profile_image=user.profile_image.replace("app/", "/") if user.profile_image else None,
+            # profile_image=user.profile_image.replace("app/", "/",1) if user.profile_image else None,
+            profile_image=user.profile_image if user.profile_image else None,
             is_verified=user.is_verified,
             created_at=datetime.utcnow(),  # Use current time since User model doesn't have created_at
             is_blocked=False
@@ -154,7 +155,8 @@ async def get_user_by_id(
         bmi=user.bmi,
         weight_goal=user.weight_goal,
         activity_level=user.activity_level,
-        profile_image=user.profile_image.replace("app/", "/") if user.profile_image else None,
+        # profile_image=user.profile_image.replace("app/", "/",1) if user.profile_image else None,
+        profile_image=user.profile_image if user.profile_image else None,
         is_verified=user.is_verified,
         created_at=datetime.utcnow(),  # Use current time since User model doesn't have created_at
         is_blocked=False
