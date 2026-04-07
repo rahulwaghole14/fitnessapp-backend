@@ -34,6 +34,7 @@ from .bmi_classification import (
 from .subscription_plans import create_plan, get_plans, get_plan_by_id, update_plan, delete_plan
 from .users import get_user_subscriptions_paginated, get_user_subscription_by_id, update_user_subscription
 from .activities import get_recent_activities
+from .notifications import get_notifications, get_notification_stats, get_activity_types, mark_notification_as_read, mark_all_notifications_as_read, get_unread_notifications_count
 
 
 admin_router = APIRouter()
@@ -107,4 +108,12 @@ admin_router.delete("/delete-plan/{plan_id}")(delete_plan)
 
 # User Activity Logs Routes
 admin_router.get("/recent-activities")(get_recent_activities)
+
+# Notification Management Routes
+admin_router.get("/notifications")(get_notifications)
+admin_router.get("/notifications/stats")(get_notification_stats)
+admin_router.get("/notifications/activity-types")(get_activity_types)
+admin_router.put("/notifications/{notification_id}/mark-read")(mark_notification_as_read)
+admin_router.put("/notifications/mark-all-read")(mark_all_notifications_as_read)
+admin_router.get("/notifications/unread-count")(get_unread_notifications_count)
 

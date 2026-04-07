@@ -1,14 +1,35 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-import pytz
 from typing import Optional
 from app.models.user_activity_log import UserActivityLog
+from app.services.notification_service import notification_service
 
-# Define IST timezone
-IST = pytz.timezone("Asia/Kolkata")
+# Define IST timezone using zoneinfo (Python 3.9+)
+try:
+    from zoneinfo import ZoneInfo
+    IST = ZoneInfo("Asia/Kolkata")
+except ImportError:
+    # Fallback to pytz for older Python versions
+    import pytz
+    IST = pytz.timezone("Asia/Kolkata")
+
+# Activity type mapping for admin notifications
+ACTIVITY_TYPE_MAPPING = {
+    "signup": "USER_REGISTERED",
+    "profile_update": "PROFILE_UPDATED", 
+    "subscription_purchase": "SUBSCRIPTION_PURCHASED",
+    "login": "USER_LOGIN",
+    "failed_login": "FAILED_LOGIN",
+    "password_change": "PASSWORD_CHANGED",
+    "account_deactivate": "ACCOUNT_DEACTIVATED",
+    "payment_failed": "PAYMENT_FAILED",
+    "workout_complete": "WORKOUT_COMPLETED",
+    "goal_achieved": "GOAL_ACHIEVED",
+    "suspicious_activity": "SUSPICIOUS_ACTIVITY"
+}
 
 
-def log_activity(db: Session, user_id: Optional[int], username: str, activity_type: str, description: str) -> UserActivityLog:
+def log_activity(db: Session, user_id: Optional[int], username: str, activity_type: str, description: str, send_notification: bool = True) -> UserActivityLog:
     """
     Log user activity to the database.
     
@@ -18,14 +39,18 @@ def log_activity(db: Session, user_id: Optional[int], username: str, activity_ty
         username: Username of the user
         activity_type: Type of activity (e.g., "signup", "profile_update", "subscription_purchase")
         description: Human-readable description (e.g., "Suraj signed up", "Suraj updated profile")
+        send_notification: Whether to send WebSocket notification for admin-important activities
     
     Returns:
         UserActivityLog: The created activity log entry
     """
+    # Map activity type to admin notification format
+    mapped_activity_type = ACTIVITY_TYPE_MAPPING.get(activity_type, activity_type.upper())
+    
     activity_log = UserActivityLog(
         user_id=user_id,
         username=username,
-        activity_type=activity_type,
+        activity_type=mapped_activity_type,
         description=description,
         created_at=datetime.utcnow()  # Store UTC internally
     )
@@ -33,6 +58,21 @@ def log_activity(db: Session, user_id: Optional[int], username: str, activity_ty
     db.add(activity_log)
     db.commit()
     db.refresh(activity_log)
+    
+    # Send WebSocket notification if enabled and activity is admin-important
+    if send_notification and notification_service.is_admin_important_activity(mapped_activity_type):
+        try:
+            # Create an event loop to run the async function
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(notification_service.send_notification_to_admins(activity_log))
+            finally:
+                loop.close()
+        except Exception as e:
+            # Log error but don't fail the activity logging
+            print(f"Failed to send WebSocket notification: {e}")
     
     return activity_log
 
