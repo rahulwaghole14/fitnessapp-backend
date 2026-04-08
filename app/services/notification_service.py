@@ -45,19 +45,23 @@ class NotificationService:
             logger.debug(f"Activity {activity_log.activity_type} is not admin-important, skipping notification")
             return
         
-        # Format the notification message
+        # Format the notification message using standardized event format
         notification_message = {
-            "id": activity_log.id,
-            "type": activity_log.activity_type,
-            "message": activity_log.description,
-            "username": activity_log.username,
-            "timestamp": activity_log.created_at.isoformat() if activity_log.created_at else datetime.utcnow().isoformat(),
-            "user_id": activity_log.user_id
+            "event": "NEW_NOTIFICATION",
+            "data": {
+                "id": activity_log.id,
+                "type": activity_log.activity_type,
+                "message": activity_log.description,
+                "username": activity_log.username,
+                "timestamp": activity_log.created_at.isoformat() if activity_log.created_at else datetime.utcnow().isoformat(),
+                "user_id": activity_log.user_id,
+                "is_read": activity_log.is_read
+            }
         }
         
         try:
-            # Broadcast to all admin connections
-            await websocket_manager.broadcast_to_admins(notification_message)
+            # Broadcast to all admin connections using standardized event format
+            await websocket_manager.broadcast_event("NEW_NOTIFICATION", notification_message["data"])
             logger.info(f"Admin notification sent for activity {activity_log.activity_type}: {activity_log.description}")
         except Exception as e:
             logger.error(f"Failed to send admin notification: {e}")

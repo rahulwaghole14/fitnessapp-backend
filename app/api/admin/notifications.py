@@ -7,6 +7,7 @@ from datetime import datetime
 from app.core.database import get_db
 from app.models.user_activity_log import UserActivityLog
 from app.services.notification_service import notification_service, ADMIN_IMPORTANT_ACTIVITIES
+from app.core.websocket_manager import websocket_manager
 from app.utils.activity_logger import time_ago
 from .dependencies import get_current_admin
 
@@ -126,7 +127,7 @@ def get_activity_types(
         )
 
 
-def mark_notification_as_read(
+async def mark_notification_as_read(
     notification_id: int,
     db: Session = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -159,6 +160,19 @@ def mark_notification_as_read(
         db.commit()
         db.refresh(notification)
         
+        # Broadcast real-time update to all connected clients
+        try:
+            await websocket_manager.broadcast_event(
+                event="NOTIFICATION_READ",
+                data={
+                    "id": notification.id,
+                    "is_read": notification.is_read
+                }
+            )
+        except Exception as e:
+            # Log error but don't fail the API response
+            print(f"WebSocket broadcast failed for notification read: {e}")
+        
         return {
             "message": "Notification marked as read successfully",
             "notification_id": notification.id,
@@ -175,7 +189,7 @@ def mark_notification_as_read(
         )
 
 
-def mark_all_notifications_as_read(
+async def mark_all_notifications_as_read(
     activity_type: Optional[str] = Query(None, description="Filter by specific activity type"),
     db: Session = Depends(get_db),
     current_admin = Depends(get_current_admin)
@@ -216,6 +230,19 @@ def mark_all_notifications_as_read(
         # Mark all as read
         query.update({UserActivityLog.is_read: True}, synchronize_session=False)
         db.commit()
+        
+        # Broadcast real-time update to all connected clients
+        try:
+            await websocket_manager.broadcast_event(
+                event="ALL_NOTIFICATIONS_READ",
+                data={
+                    "marked_count": unread_count,
+                    "activity_type_filter": activity_type
+                }
+            )
+        except Exception as e:
+            # Log error but don't fail the API response
+            print(f"WebSocket broadcast failed for mark all read: {e}")
         
         return {
             "message": f"Successfully marked {unread_count} notifications as read",

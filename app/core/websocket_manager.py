@@ -81,6 +81,45 @@ class WebSocketManager:
         # In future, you can filter by connection metadata
         await self.broadcast(message)
 
+    async def broadcast_event(self, event: str, data: dict):
+        """
+        Broadcast a standardized event to all connected clients.
+        
+        Args:
+            event: Event type (e.g., "NOTIFICATION_READ", "ALL_NOTIFICATIONS_READ")
+            data: Event data payload
+        """
+        if not self.active_connections:
+            logger.debug(f"No active connections to broadcast event: {event}")
+            return
+        
+        # Create standardized event message
+        event_message = {
+            "event": event,
+            "data": data
+        }
+        
+        print(f"Broadcasting event: {event} to {len(self.active_connections)} connections")
+        logger.info(f"Broadcasting event: {event} to {len(self.active_connections)} connections")
+        
+        # Create a list of connections to remove if they fail
+        failed_connections = []
+        
+        for connection_id, websocket in self.active_connections.items():
+            try:
+                await websocket.send_text(json.dumps(event_message))
+                logger.debug(f"Event {event} sent to connection {connection_id}")
+            except Exception as e:
+                logger.error(f"Error broadcasting event {event} to {connection_id}: {e}")
+                failed_connections.append(connection_id)
+        
+        # Remove failed connections
+        for connection_id in failed_connections:
+            self.disconnect(connection_id)
+        
+        print(f"Event {event} broadcast completed. Failed connections: {len(failed_connections)}")
+        logger.info(f"Event {event} broadcast completed. Failed connections: {len(failed_connections)}")
+
     def get_connection_count(self) -> int:
         """Get the number of active connections."""
         return len(self.active_connections)

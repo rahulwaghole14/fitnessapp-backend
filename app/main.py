@@ -17,6 +17,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # React Admin Dev
+        "http://192.168.1.6:3000",
         # Add your production admin domain here
         "https://fitness-app-dashboard-eight.vercel.app"
         # "https://admin.yourdomain.com"
