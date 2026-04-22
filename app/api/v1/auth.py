@@ -60,8 +60,6 @@ def resend_otp(data: ResendOTPSchema, db: Session = Depends(get_db)):
     user.otp_created_at = datetime.utcnow()  # Reset expiration timer
     db.commit()
 
-    print(f"Resend OTP for {data.email}: {new_otp}")
-
     # Define user-specific resend OTP message
     user_message = """We received a request to resend the OTP verification code for your Fitness App account.
 
@@ -145,8 +143,6 @@ def forgot_password_send_otp(user: ForgotPasswordEmailSchema, db: Session = Depe
     user.otp = new_otp
     user.otp_created_at = datetime.utcnow()  # Reset expiration timer for password reset
     db.commit()
-
-    print(f"Forgot Password OTP for {user.email}: {new_otp}")
  
     # Define user-specific message
     user_message = """We received a request to reset the password for your Fitness App account.

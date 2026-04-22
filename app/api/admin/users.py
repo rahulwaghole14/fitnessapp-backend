@@ -64,7 +64,6 @@ async def register_user(user: UserRegisterSchema,
     return UserRegisterResponse(
         username=new_user.username,
         email=new_user.email,
-        password=user.password  # Return the original password from request
     )
 
 

@@ -87,8 +87,7 @@ class UserRegisterSchema(BaseModel):
 class UserRegisterResponse(BaseModel):
     username : str
     email: EmailStr
-    password: str
-
+    
 class UserBase(BaseModel):
     email: EmailStr
     gender: Optional[str] = None

@@ -72,7 +72,7 @@ class MonthlyActivityResponse(BaseModel):
     total_distance_km: float
     total_calories: float
     total_active_minutes: float
-    created_at: str
+    # created_at: str
 
     class Config:
         from_attributes = True
@@ -87,4 +87,4 @@ class YearlyActivityResponse(BaseModel):
     total_distance_km: float
     total_calories: float
     total_active_minutes: float
-    created_at: str
+    # created_at: str

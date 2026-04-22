@@ -213,8 +213,8 @@ def get_user_daily_activities(current_user_id: int = Depends(get_current_user_id
                 distance_km=activity.distance_km,
                 calories=activity.calories,
                 active_minutes=activity.active_minutes,
-                created_at=activity.created_at.isoformat(),
-                updated_at=activity.updated_at.isoformat()
+                created_at=activity.created_at,
+                updated_at=activity.updated_at
             )
             for activity in activities
         ]
@@ -323,7 +323,7 @@ def get_user_monthly_activities(
                 total_distance_km=record[4],
                 total_calories=record[5],
                 total_active_minutes=record[6],
-                created_at=record[7].isoformat() if record[7] else ""
+                # created_at=record[7].isoformat() if record[7] else ""
             ))
 
         return monthly_activities
@@ -364,7 +364,7 @@ def get_user_yearly_activities(
                 total_distance_km=record[3],
                 total_calories=record[4],
                 total_active_minutes=record[5],
-                created_at=record[6].isoformat() if record[6] else ""
+                # created_at=record[6].isoformat() if record[6] else ""
             ))
 
         return yearly_activities
