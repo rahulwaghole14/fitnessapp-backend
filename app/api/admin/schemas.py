@@ -295,3 +295,27 @@ class UserResponsedash(BaseModel):
     email: str
     activity_level: Optional[str] = None
     gender: Optional[str] = None
+
+
+# Quotes Schema
+class QuoteBase(BaseModel):
+    text: str
+    author: Optional[str] = None
+    category: Optional[str] = None
+
+class QuoteCreate(QuoteBase):
+    pass
+
+class QuoteUpdate(BaseModel):
+    text: Optional[str] = None
+    author: Optional[str] = None
+    category: Optional[str] = None
+
+class QuoteResponse(QuoteBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True

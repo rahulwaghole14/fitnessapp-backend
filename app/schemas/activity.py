@@ -41,8 +41,8 @@ class UserDailyActivityResponse(BaseModel):
     distance_km: float
     calories: float
     active_minutes: float
-    created_at: str
-    updated_at: str
+    # created_at: str
+    # updated_at: str
 
     class Config:
         from_attributes = True

@@ -13,7 +13,7 @@ from .schemas import (
     BMIClassificationResponse, BMIClassificationCreate, BMIClassificationUpdate,
     PaginatedResponse, PaginationInfo, AdminRefreshTokenRequest, AdminLogoutRequest, AdminRefreshTokenResponse,
     Plan, PlanCreate, PlanUpdate, UserSubscriptionResponse,
-    OverviewResponse, UserResponsedash
+    OverviewResponse, UserResponsedash, QuoteResponse, SuccessResponse
 )
 from .auth import register_admin, login_admin, admin_forgot_password_send_otp, admin_forgot_password_verify_otp, admin_forgot_password_reset, admin_change_password, get_admin_profile, update_admin_profile
 from .auth_tokens import refresh_admin_access_token, logout_admin
@@ -35,6 +35,7 @@ from .subscription_plans import create_plan, get_plans, get_plan_by_id, update_p
 from .users import get_user_subscriptions_paginated, get_user_subscription_by_id, update_user_subscription
 from .activities import get_recent_activities
 from .notifications import get_notifications, get_notification_stats, get_activity_types, mark_notification_as_read, mark_all_notifications_as_read, get_unread_notifications_count
+from .quotes import create_new_quote, list_all_quotes_for_admin, modify_existing_quote, remove_quote
 
 
 admin_router = APIRouter()
@@ -105,6 +106,12 @@ admin_router.get("/plans", response_model=list[Plan])(get_plans)
 admin_router.get("/plan/{plan_id}", response_model=Plan)(get_plan_by_id)
 admin_router.put("/update-plan/{plan_id}", response_model=Plan)(update_plan)
 admin_router.delete("/delete-plan/{plan_id}")(delete_plan)
+
+# Quotes Management Routes
+admin_router.post("/quotes", response_model=QuoteResponse)(create_new_quote)
+admin_router.get("/quotes", response_model=list[QuoteResponse])(list_all_quotes_for_admin)
+admin_router.put("/quotes/{quote_id}", response_model=QuoteResponse)(modify_existing_quote)
+admin_router.delete("/quotes/{quote_id}", response_model=SuccessResponse)(remove_quote)
 
 # User Activity Logs Routes
 admin_router.get("/recent-activities")(get_recent_activities)

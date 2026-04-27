@@ -39,3 +39,8 @@ class ProfileSetupSchema(BaseModel):
     bmi:float
     weight_goal:float
     activity_level:str
+
+class ChangePasswordSchema(BaseModel):
+    old_password: str
+    new_password: str
+    confirm_password: str

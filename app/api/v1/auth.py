@@ -15,7 +15,7 @@ from app.core.auth_dependencies import get_current_user, get_current_user_id
 from app.schemas.auth import (
     RegisterSchema, VerifyOTPSchema, LoginSchema, ResendOTPSchema,
     ForgotPasswordEmailSchema, ForgotPasswordVerifySchema, ForgotPasswordResetSchema,
-    ProfileSetupSchema)
+    ProfileSetupSchema, ChangePasswordSchema)
 
 from app.utils.emailjs_utils import send_otp_email
 from app.utils.activity_logger import log_activity
@@ -384,3 +384,48 @@ async def get_user_profile(
             "profile_image": profile_image_path
         }
     }
+
+
+def change_password(
+    data: ChangePasswordSchema,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Change password for authenticated user.
+    
+    Args:
+        data: ChangePasswordSchema containing old_password, new_password, confirm_password
+        current_user: Current authenticated user from JWT token
+        db: Database session
+    
+    Returns:
+        Success or error response
+    """
+    # Validate that new password and confirm password match
+    if data.new_password != data.confirm_password:
+        raise HTTPException(status_code=400, detail="New password and confirm password do not match")
+    
+    # Verify old password
+    if not verify_password(data.old_password, current_user.password):
+        raise HTTPException(status_code=400, detail="Old password is incorrect")
+    
+    # Check if new password is same as old password
+    if verify_password(data.new_password, current_user.password):
+        raise HTTPException(status_code=400, detail="New password cannot be the same as old password")
+    
+    try:
+        # Hash and update the new password
+        current_user.password = hash_password(data.new_password)
+        db.commit()
+        
+        # Log password change activity
+        log_activity(db, current_user.id, current_user.username, "password_change", f"{current_user.username} changed password")
+        
+        return {
+            "message": "Password changed successfully"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to change password: {str(e)}")

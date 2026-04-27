@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from .auth import (
     register, login,
     forgot_password_send_otp, resend_otp, forgot_password_verify_otp, forgot_password_reset_password,
-    update_profile, get_profile,upload_profile_image, get_user_profile)
+    update_profile, get_profile,upload_profile_image, get_user_profile, change_password)
 
 from .auth_tokens import refresh_token, logout, logout_all
 
@@ -13,9 +13,11 @@ from .meals import get_meals_by_user_bmi
 from .workouts import get_workouts_for_user
 from .subscription import (get_all_plans, get_plan_id, create_subscription_order, handle_razorpay_webhook,
                            get_payment_history ,get_user_subscription)
+from .quotes import get_random_quote, get_quotes_list
 
 from app.schemas.subscription import Plan
 from app.schemas.payment import OrderResponse, PaymentHistory
+from app.schemas.quote import QuoteResponse, QuoteListResponse
 
 router = APIRouter()
 
@@ -31,6 +33,9 @@ router.get("/profile")(get_profile),
 # Profile image endpoints
 router.put("/users/profile-image")(upload_profile_image)
 router.get("/users/profile")(get_user_profile)
+
+# Change password endpoint
+router.put("/change-password")(change_password)
 
 # JWT Token endpoints
 router.post("/auth/refresh")(refresh_token),
@@ -50,6 +55,9 @@ router.get("/meals")(get_meals_by_user_bmi)
 
 # Workout endpoints
 router.get("/workouts")(get_workouts_for_user)
+
+# Quotes endpoints
+router.get("/quotes/random", response_model=QuoteResponse)(get_random_quote)
 
 #Subscription Endpoints
 router.get("/subscription-plans", response_model=list[Plan])(get_all_plans)

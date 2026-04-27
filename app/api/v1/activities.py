@@ -213,8 +213,8 @@ def get_user_daily_activities(current_user_id: int = Depends(get_current_user_id
                 distance_km=activity.distance_km,
                 calories=activity.calories,
                 active_minutes=activity.active_minutes,
-                created_at=activity.created_at,
-                updated_at=activity.updated_at
+                # created_at=activity.created_at.isoformat(),
+                # updated_at=activity.updated_at.isoformat()
             )
             for activity in activities
         ]
