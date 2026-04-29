@@ -8,11 +8,12 @@ from app.core.auth_dependencies import get_current_user, get_current_user_id
 from app.models import User
 from app.models.bmi_classification import BMIClassification
 from app.models.meal import Meal
+from app.schemas.meal import MealResponse
 
 router = APIRouter()
 
 
-def get_meals_by_user_bmi(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_meals_by_user_bmi(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> List[MealResponse]:
 
     # Determine BMI value to use
     if current_user.bmi is None:
@@ -46,4 +47,6 @@ def get_meals_by_user_bmi(current_user: User = Depends(get_current_user), db: Se
         ).limit(5).all()
         meals.extend(category_meals)
 
-    return meals
+    # Convert to response schema
+    meal_responses = [MealResponse.model_validate(meal) for meal in meals]
+    return meal_responses

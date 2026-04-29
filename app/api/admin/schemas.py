@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator, Field
 from typing import Optional, List, Generic, TypeVar
 from datetime import datetime
+from fastapi import UploadFile, Form
 import json
 
 # Generic Type for Paginated Response
@@ -179,18 +180,24 @@ class MealBase(BaseModel):
     meal_type: str  # breakfast, lunch, dinner
     food_item: str
     calories: int
+    description: Optional[str] = None
+    meal_image: Optional[str] = None
 
 class MealCreate(MealBase):
     pass  # No user_id needed for admin meals
 
 class MealUpdate(BaseModel):
-    name: Optional[str] = None
+    food_item: Optional[str] = None
     calories: Optional[int] = None
     meal_type: Optional[str] = None
     bmi_category_id: Optional[int] = None
+    description: Optional[str] = None
+    meal_image: Optional[str] = None
 
 class MealResponse(MealBase):
     id: int
+    created_at: Optional[datetime] = None
+
 
 # Pagination Schema
 class PaginationInfo(BaseModel):

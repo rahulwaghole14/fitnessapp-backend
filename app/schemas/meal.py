@@ -8,6 +8,8 @@ class MealBase(BaseModel):
     meal_type: str  # breakfast, lunch, dinner
     food_item: str
     calories: int
+    description: Optional[str] = None
+    meal_image: Optional[str] = None
 
 
 class MealCreate(MealBase):
