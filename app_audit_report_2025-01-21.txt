@@ -1,0 +1,911 @@
+APPLICATION AUDIT REPORT
+Generated: 2025-01-21
+========================
+
+1. APPLICATION OVERVIEW
+-----------------------
+The Fitness App is a FastAPI-based backend with PostgreSQL, JWT authentication, Razorpay payments, Cloudinary media storage, and WebSocket notifications. It has separate API routes for users (/api/v1) and admins (/api/admin).
+
+Entry Point: app/main.py - FastAPI with Uvicorn on 0.0.0.0:8000
+Authentication: JWT access tokens (60min) + refresh tokens (7days) with database-backed revocation
+Database: PostgreSQL via SQLAlchemy ORM with some raw SQL queries
+External Services: Razorpay (payments), Cloudinary (media), EmailJS (email OTP)
+Real-time: WebSocket for admin notifications (/ws/admin/notifications)
+
+Key Routes:
+User: register, login, profile, activities (daily/monthly/yearly), meals, workouts, subscriptions
+Admin: user management, content management (workouts/meals/BMI), subscription plans, notifications, dashboard
+
+Data Models: User, Admin, DailyActivity, UserMonthlyActivity, UserYearlyActivity, RefreshToken, Workout, Meal, BMIClassification, Subscription, Payment, PaymentHistory, Plan, UserActivityLog
+
+
+2. SECURITY FINDINGS
+--------------------
+
+CRITICAL:
+
+1. CRITICAL | app/core/database.py:12 | Database echo=True in production
+   Description: SQLAlchemy echo=True logs all SQL queries to console, exposing sensitive data and impacting performance.
+   Fix: echo=os.getenv("DEBUG", "false").lower() == "true"
+
+2. CRITICAL | app/api/v1/auth.py:44 | Password fallback to plain text comparison
+   Description: verify_password() has fallback to plain text if bcrypt fails - severe security vulnerability.
+   Fix: Remove fallback exception handler entirely.
+
+3. CRITICAL | app/api/v1/auth.py:63,149 | OTP values printed to console
+   Description: OTP values printed to console in production, exposing verification codes.
+   Fix: Remove all print statements outputting OTPs. Use DEBUG-level logging only.
+
+4. CRITICAL | app/api/admin/auth.py:104 | Weak JTI generation for admin refresh tokens
+   Description: JTI uses timestamp-based generation which is predictable.
+   Fix: Use UUID: jti = str(uuid.uuid4())
+
+HIGH:
+
+5. HIGH | app/core/jwt_utils.py:11, app/api/admin/auth.py:33 | JWT secrets not validated for strength
+   Description: No minimum length or entropy validation for JWT secrets.
+   Fix: Add validation: if len(JWT_SECRET_KEY) < 32: raise ValueError("Must be at least 32 characters")
+
+6. HIGH | app/main.py:18-27 | CORS allows localhost origins in production
+   Description: CORS allows http://localhost:3000 and http://192.168.1.6:3000 - development origins in production.
+   Fix: Use environment-based CORS: ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
+
+7. HIGH | app/api/v1/auth.py:222-234, app/api/admin/auth.py:220-236 | No brute force protection on login
+   Description: Login endpoints lack rate limiting or account lockout.
+   Fix: Implement rate limiting (slowapi) and failed attempt tracking with temporary lockout.
+
+8. HIGH | app/api/v1/subscription.py:83-126 | Webhook signature verification bypassable
+   Description: Webhook endpoint not protected with additional auth, replay attacks possible.
+   Fix: Add timestamp verification, nonce, and additional secret validation.
+
+9. HIGH | app/api/admin/users.py:67 | Password returned in registration response
+   Description: UserRegisterResponse includes original password, exposing it in logs/history.
+   Fix: Remove password from UserRegisterResponse schema.
+
+10. HIGH | app/core/auth_dependencies.py:98-113, app/api/admin/dependencies.py:22-64 | No CSRF protection
+    Description: No CSRF protection for state-changing operations.
+    Fix: Implement CSRF protection for admin panel endpoints.
+
+11. HIGH | app/services/image_service.py:62-64, workout_media_service.py:89-92 | File upload validation insufficient
+    Description: Image validation checks extension and PIL but not actual MIME type or polyglot files.
+    Fix: Add MIME type validation using python-magic, scan with ClamAV.
+
+12. HIGH | app/api/v1/auth.py:275-302 | Profile update lacks input validation
+    Description: ProfileSetupSchema accepts string for age (should be int), no range validation.
+    Fix: Add proper type validators with constraints in Pydantic schema.
+
+13. HIGH | app/utils/emailjs_utils.py:63, activity_logger.py:131, workout_media_service.py:91,176,189 | Bare except blocks
+    Description: Bare except: catches system exceptions (KeyboardInterrupt, SystemExit).
+    Fix: Replace with except Exception: to catch only expected exceptions.
+
+14. HIGH | app/api/admin/dependencies.py:22-64 | Admin routes lack RBAC
+    Description: Only checks if user is admin, no role-based permissions for different access levels.
+    Fix: Implement RBAC with roles (super_admin, content_manager, support_admin) and permission checks.
+
+MEDIUM:
+
+15. MEDIUM | app/core/database.py:10-13 | No database connection pooling
+    Description: SQLAlchemy engine created without pool configuration.
+    Fix: Configure pool: pool_size=20, max_overflow=10, pool_recycle=3600, pool_pre_ping=True
+
+16. MEDIUM | app/api/v1/activities.py:199-225 | No pagination on daily activities
+    Description: Returns all records without pagination.
+    Fix: Add skip/limit Query parameters.
+
+17. MEDIUM | app/models/*.py | Missing database indexes
+    Description: No indexes on frequently queried fields (User.email, User.username, DailyActivity.date).
+    Fix: Add indexes: Index('idx_user_email', User.email), Index('idx_daily_activity_user_date', DailyActivity.user_id, DailyActivity.date)
+
+18. MEDIUM | app/services/razorpay_service.py:49-62 | Webhook timing attack potential
+    Description: Error handling could leak timing information.
+    Fix: Ensure constant-time comparison in all code paths.
+
+19. MEDIUM | app/api/admin/users.py:275-290 | Subscription check timezone issue
+    Description: Uses datetime.utcnow() without timezone awareness.
+    Fix: Use datetime.now(timezone.utc)
+
+20. MEDIUM | app/utils/emailjs_utils.py:45 | Hardcoded Origin header
+    Description: Hardcoded "http://localhost:5000" for EmailJS requests.
+    Fix: Use environment variable: os.getenv("FRONTEND_URL")
+
+21. MEDIUM | app/core/websocket_manager.py:10-16 | WebSocket connections in-memory
+    Description: Won't scale across multiple server instances.
+    Fix: Use Redis Pub/Sub for distributed WebSocket management.
+
+22-29. MEDIUM | Debug print statements in production (20+ locations)
+    Locations: app/api/v1/workouts.py:35-54, admin/workouts.py:265-291, v1/subscription.py, v1/auth.py, payment_service.py, websocket_manager.py, admin/users.py, activity_logger.py
+    Description: Print statements expose sensitive data and clutter logs.
+    Fix: Remove all print statements, use proper logging with appropriate levels.
+
+30. MEDIUM | app/services/razorpay_service.py:42,46,59,73,82,87,98,103,107 | No logging configuration
+    Description: Uses logger but logging not configured at application level.
+    Fix: Configure logging in main.py with levels, formatters, handlers.
+
+31. MEDIUM | app/main.py:13 | No HTTPS enforcement
+    Description: No HTTPS enforcement, allows unencrypted connections.
+    Fix: Use middleware/reverse proxy to enforce HTTPS, add HSTS headers.
+
+32. MEDIUM | app/api/v1/activities.py:133-148, fitness_services.py:23-83 | Raw SQL instead of ORM
+    Description: Uses raw SQL with text() instead of ORM, less maintainable.
+    Fix: Migrate to SQLAlchemy ORM queries.
+
+33. MEDIUM | app/models/subscription.py:26 | Unique constraint too restrictive
+    Description: (user_id, status) constraint allows only one active subscription per user.
+    Fix: Change to allow multiple or add effective date ranges.
+
+34. MEDIUM | app/api/v1/meals.py:15-42 | No meal type validation
+    Description: meal_type not validated against allowed values (breakfast, lunch, dinner).
+    Fix: Add enum or validator for meal_type field.
+
+35. MEDIUM | app/api/v1/workouts.py:21-25, admin/workouts.py:34-45 | Validation in wrong place
+    Description: Activity level validation in handler instead of schema.
+    Fix: Move validation to Pydantic schema validators.
+
+36. MEDIUM | app/utils/activity_logger.py:66-72 | Event loop in sync context
+    Description: Creating new event loop in sync function is anti-pattern.
+    Fix: Use proper async/await or background tasks.
+
+37. MEDIUM | app/core/auth_dependencies.py:98-113 | Optional auth hides errors
+    Description: Returns None on any exception without logging.
+    Fix: Log exception before returning None.
+
+38. MEDIUM | app/api/v1/subscription.py:18-20, v1/auth.py:25, image_service.py:1-189 | Module-level service instantiation
+    Description: Services instantiated at module level, bad for testing.
+    Fix: Use dependency injection pattern.
+
+39. MEDIUM | app/core/database.py:8 | DATABASE_URL not validated
+    Description: No validation of DATABASE_URL format.
+    Fix: Add URL validation with proper error message.
+
+40. MEDIUM | app/main.py:31 | Static files without security headers
+    Description: No CSP, X-Content-Type-Options headers on static files.
+    Fix: Add security headers middleware.
+
+41. MEDIUM | app/api/admin/dependencies.py:18 | JWT algorithm hardcoded
+    Description: HS256 hardcoded, not configurable for algorithm upgrades.
+    Fix: Use environment variable: os.getenv("JWT_ALGORITHM", "HS256")
+
+42. MEDIUM | app/core/jwt_utils.py:12-14 | Token expiry hardcoded
+    Description: ACCESS_TOKEN_EXPIRE_MINUTES and REFRESH_TOKEN_EXPIRE_DAYS hardcoded.
+    Fix: Use environment variables for configuration.
+
+43. MEDIUM | app/api/v1/auth.py:56-57, admin/auth.py:302 | Weak random for OTP
+    Description: Uses random.randint instead of secrets module.
+    Fix: Use secrets.randbelow(900000) + 100000
+
+44. MEDIUM | app/api/v1/auth.py:176-182, admin/auth.py:344-350 | OTP expiry hardcoded
+    Description: 300 second expiry hardcoded.
+    Fix: Use environment variable: OTP_EXPIRE_SECONDS
+
+45. MEDIUM | app/models/user.py:13 | Password hashing not enforced at model level
+    Description: Relies on application logic to hash passwords.
+    Fix: Add password setter/hasher at model level.
+
+46. MEDIUM | app/api/admin/users.py:28-35, v1/auth.py:28-34, admin/auth.py:51-61 | Password hashing duplicated
+    Description: hash_password function duplicated in 3+ files.
+    Fix: Create shared utility module app/utils/password_utils.py
+
+47. MEDIUM | app/api/admin/users.py:122-124,171,251 | Created at hardcoded
+    Description: UserResponse created_at hardcoded to datetime.utcnow().
+    Fix: Add created_at field to User model.
+
+48. MEDIUM | app/api/admin/workouts.py:95-104, v1/workouts.py:63-64, v1/auth.py:376-380 | URL path manipulation hardcoded
+    Description: Hardcoded "app/" to "/" replacement.
+    Fix: Use environment variable for base path configuration.
+
+49. MEDIUM | app/services/image_service.py:85-103, workout_media_service.py:165-191 | Fragile Cloudinary URL parsing
+    Description: Relies on specific URL structure.
+    Fix: Store public_id in database instead of parsing URL.
+
+50. MEDIUM | app/api/v1/activities.py:252-268 | Weeks per month hardcoded
+    Description: Assumes exactly 4 weeks per month.
+    Fix: Calculate actual weeks using calendar.monthcalendar()
+
+51. MEDIUM | app/api/v1/activities.py:77-131 | Complex yearly aggregation logic
+    Description: Complex Q1-based triggering logic hard to maintain.
+    Fix: Simplify logic, add documentation, consider scheduled jobs.
+
+52. MEDIUM | app/services/fitness_services.py:129-156 | Retention policy hardcoded
+    Description: 12-month retention hardcoded.
+    Fix: Use environment variable: MONTHLY_RETENTION_MONTHS
+
+LOW:
+
+53. LOW | requirements.txt | No version pinning
+    Description: No version constraints, potential breaking changes.
+    Fix: Pin versions: fastapi==0.104.1, uvicorn[standard]==0.24.0, etc.
+
+54. LOW | app/main.py | No API versioning
+    Description: No version information or versioning strategy.
+    Fix: Add version parameter to FastAPI, implement API versioning.
+
+55. LOW | No /docs security in production
+    Description: /docs and /openapi.json exposed in production.
+    Fix: Disable in production: docs_url=None when ENV == "production"
+
+56. LOW | app/models/*.py | No soft delete
+    Description: Hard delete, no data recovery possible.
+    Fix: Implement soft delete with is_deleted, deleted_at fields.
+
+57. LOW | app/api/admin/notifications.py:15-76 | No notification deduplication
+    Description: Could be duplicated on multiple calls.
+    Fix: Add deduplication based on activity type, user_id, time window.
+
+58. LOW | app/core/websocket_manager.py | No heartbeat mechanism
+    Description: No ping/pong to detect dead connections.
+    Fix: Implement heartbeat with connection timeout.
+
+59. LOW | app/api/websocket.py | No WebSocket authentication
+    Description: Anyone can connect to WebSocket.
+    Fix: Add JWT token validation in handshake.
+
+60. LOW | app/services/notification_service.py:37-67, emailjs_utils.py:41-53 | No retry logic
+    Description: Failed operations not retried.
+    Fix: Implement retry with exponential backoff.
+
+61. LOW | app/models/user.py | Unused is_verified field
+    Description: Field exists but no verification flow implemented.
+    Fix: Implement email verification or remove field.
+
+62. LOW | app/models/user.py | No account lockout tracking
+    Description: No fields for lockout status or failed attempts.
+    Fix: Add is_locked, locked_at, failed_login_attempts fields.
+
+63. LOW | app/models/user.py | No last login tracking
+    Description: No last login time/IP for security auditing.
+    Fix: Add last_login_at, last_login_ip fields.
+
+64. LOW | app/api/v1/auth.py:236-241 | Revoked tokens deleted
+    Description: Revoked refresh tokens deleted, losing audit trail.
+    Fix: Keep revoked tokens with is_revoked field.
+
+65. LOW | app/api/admin/users.py:292-358 | No audit log for user deletion
+    Description: No record of who deleted user and when.
+    Fix: Add audit log entry with admin ID and timestamp.
+
+66. LOW | No request ID tracking
+    Description: No request ID for distributed tracing.
+    Fix: Add request ID middleware.
+
+67. LOW | No structured logging
+    Description: Plain string logging instead of JSON.
+    Fix: Use python-json-logger or structlog.
+
+68. LOW | No health check endpoint
+    Description: No /health or /ready for Kubernetes probes.
+    Fix: Add health check endpoint with database connectivity check.
+
+69. LOW | No metrics collection
+    Description: No Prometheus metrics for monitoring.
+    Fix: Add prometheus-fastapi-instrumentator.
+
+70. LOW | No global rate limiting
+    Description: Rate limiting only mentioned, not implemented.
+    Fix: Implement slowapi or fastapi-limiter globally.
+
+
+3. SCALABILITY FINDINGS
+-----------------------
+
+HIGH:
+
+1. HIGH | app/core/database.py:10-13 | No database connection pooling
+   Impact: Connection overhead, potential exhaustion under load.
+   Fix: Configure pool: pool_size=20, max_overflow=10, pool_recycle=3600, pool_pre_ping=True
+
+2. HIGH | app/api/v1/activities.py:199-225 | No pagination on daily activities
+   Impact: Could return thousands of records, memory issues, slow responses.
+   Fix: Add skip/limit pagination with default limits.
+
+3. HIGH | app/core/websocket_manager.py:10-16 | WebSocket in-memory storage
+   Impact: Cannot scale horizontally, connections lost on restart, no multi-instance support.
+   Fix: Use Redis Pub/Sub for distributed WebSocket management.
+
+4. HIGH | app/services/fitness_services.py:73-83 | N+1 query in monthly aggregation
+   Impact: Many database queries when aggregating for many users.
+   Fix: Use SQL aggregation with SUM() instead of fetching all records.
+
+5. HIGH | app/api/v1/activities.py:227-296 | Weekly analytics in Python
+   Impact: Fetches all records then calculates in Python, inefficient for large datasets.
+   Fix: Use SQL window functions or date truncation for aggregation.
+
+6. HIGH | app/services/image_service.py:47-83, workout_media_service.py:72-148 | Large file uploads without streaming
+   Impact: Entire file in memory, OOM with large files.
+   Fix: Use streaming uploads with Cloudinary SDK or chunked uploads.
+
+7. HIGH | app/api/v1/subscription.py:83-126 | Webhook processing synchronous
+   Impact: Blocks request handler, could timeout.
+   Fix: Use background task queue (Celery/Redis) for webhook processing.
+
+8. HIGH | app/utils/activity_logger.py:66-72 | WebSocket notification blocks main thread
+   Impact: Creating event loop in sync context blocks request.
+   Fix: Use proper async/await or background task queue.
+
+9. HIGH | app/models/*.py | Missing database indexes
+   Impact: Slow queries on large datasets, full table scans.
+   Fix: Add indexes on foreign keys and frequently queried fields.
+
+10. HIGH | No caching layer
+    Impact: Repeated database queries waste resources.
+    Fix: Implement Redis caching for frequently accessed data (plans, workouts, meals).
+
+MEDIUM:
+
+11. MEDIUM | app/api/admin/users.py:71-143 | Inefficient search with leading wildcard
+    Impact: ILIKE with %search% prevents index usage, slow on large datasets.
+    Fix: Use trigram indexes or leading wildcard only: ilike(f"{search}%")
+
+12. MEDIUM | app/services/fitness_services.py:129-156 | Monthly retention deletion slow
+    Impact: Deleting old records one by one could be slow.
+    Fix: Use batch deletion or scheduled cleanup job.
+
+13. MEDIUM | app/api/admin/users.py:292-358 | Manual cascade deletion
+    Impact: Manual cascade could be slow and cause locks.
+    Fix: Use database cascade delete or soft delete.
+
+14. MEDIUM | app/core/database.py:14-18 | Session not optimized
+    Impact: Default session config not optimal for production.
+    Fix: Add expire_on_commit=False to prevent unnecessary SELECT on commit.
+
+15. MEDIUM | app/api/v1/activities.py:21-195 | Aggregation synchronous
+    Impact: Monthly/yearly aggregation adds latency to activity save.
+    Fix: Move aggregation to background task queue.
+
+16. MEDIUM | app/services/razorpay_service.py:76-78 | Long-held row lock
+    Impact: Lock held during webhook processing causes contention.
+    Fix: Reduce lock scope or use optimistic concurrency.
+
+17. MEDIUM | No CDN for static files
+    Impact: Static files not optimized for delivery.
+    Fix: Use CDN (CloudFront, Cloudinary CDN).
+
+18. MEDIUM | app/api/admin/dashboard.py:14-49 | Multiple separate COUNT queries
+    Impact: Multiple round trips to database for dashboard metrics.
+    Fix: Use single query with multiple COUNT subqueries.
+
+19. MEDIUM | app/api/admin/notifications.py:36-53 | Complex query without optimal index
+    Impact: Query with IN clause and multiple filters slow.
+    Fix: Add composite index on (activity_type, is_read, created_at).
+
+20. MEDIUM | No database query timeout
+    Impact: Long-running queries block connections.
+    Fix: Add statement_timeout to connection string: ?options=-c%20statement_timeout=30000
+
+21. MEDIUM | No request timeout
+    Impact: Long-running requests consume worker threads.
+    Fix: Add TimeoutMiddleware with 30s timeout.
+
+22. MEDIUM | No response compression
+    Impact: Large JSON responses waste bandwidth.
+    Fix: Add GZipMiddleware for responses >1KB.
+
+23. MEDIUM | app/services/payment_service.py:58-78 | Payment history in same transaction
+    Impact: Failure silently caught, potential inconsistency.
+    Fix: Use separate transaction or ensure consistency.
+
+24. MEDIUM | No background job queue
+    Impact: Periodic tasks triggered by user activity, not scheduled.
+    Fix: Implement Celery Beat or APScheduler for scheduled tasks.
+
+25. MEDIUM | app/models/user_activity_log.py:22-28 | Indexes not optimized
+    Impact: Activity log queries slow as table grows.
+    Fix: Review and optimize indexes based on query patterns.
+
+LOW:
+
+26. LOW | No database read replica
+    Impact: All queries go to primary, no read scaling.
+    Fix: Configure read replica for read operations.
+
+27. LOW | No query result caching
+    Impact: Identical queries re-executed.
+    Fix: Enable SQLAlchemy cache or application-level caching.
+
+28. LOW | No lazy loading optimization
+    Impact: Related objects loaded eagerly when not needed.
+    Fix: Configure lazy="selectin" or "joined" appropriately.
+
+29. LOW | No connection health checks
+    Impact: Stale connections not detected.
+    Fix: Enable pool_pre_ping or implement health check.
+
+30. LOW | No bulk insert optimization
+    Impact: Multiple single inserts instead of bulk.
+    Fix: Use bulk_insert_mappings or bulk_save_objects.
+
+
+4. CODE QUALITY FINDINGS
+------------------------
+
+HIGH:
+
+1. HIGH | 20+ print statements in production code
+   Priority: HIGH
+   Location: app/api/v1/workouts.py:35-54, admin/workouts.py:265-291, v1/subscription.py, v1/auth.py, payment_service.py, websocket_manager.py, admin/users.py, activity_logger.py
+   Description: Print statements expose sensitive data and clutter logs.
+   Fix: Remove all print statements, use logging with appropriate levels.
+
+2. HIGH | Bare except blocks (emailjs_utils.py:63, activity_logger.py:131, workout_media_service.py:91,176,189)
+   Priority: HIGH
+   Description: Catches system exceptions (KeyboardInterrupt, SystemExit).
+   Fix: Replace with except Exception:
+
+3. HIGH | Password fallback to plain text (app/api/v1/auth.py:44)
+   Priority: HIGH
+   Description: Fallback to plain text if bcrypt fails.
+   Fix: Remove fallback entirely.
+
+4. HIGH | No test coverage
+   Priority: HIGH
+   Location: Entire codebase
+   Description: Zero test files found.
+   Fix: Create tests/ directory with pytest tests for auth, activities, subscription, admin, services.
+
+5. HIGH | Password hashing duplicated in 3+ files
+   Priority: HIGH
+   Location: app/api/admin/users.py:28-35, v1/auth.py:28-34, admin/auth.py:51-61
+   Description: hash_password function duplicated.
+   Fix: Create app/utils/password_utils.py with shared functions.
+
+6. HIGH | FitnessActivityService too large (452 lines)
+   Priority: HIGH
+   Location: app/services/fitness_services.py
+   Description: Single class with multiple responsibilities.
+   Fix: Split into DailyActivityService, MonthlyAggregationService, YearlyAggregationService.
+
+7. HIGH | store_daily_activity too large (357 lines)
+   Priority: HIGH
+   Location: app/api/v1/activities.py:21-195
+   Description: Function with complex logic.
+   Fix: Extract into service methods.
+
+8. HIGH | admin/users.py too large (545 lines)
+   Priority: HIGH
+   Location: app/api/admin/users.py
+   Description: Single file with user management and subscriptions.
+   Fix: Split into users.py, user_subscriptions.py, user_profile.py.
+
+9. HIGH | admin/auth.py too large (545 lines)
+   Priority: HIGH
+   Location: app/api/admin/auth.py
+   Description: Auth and profile management mixed.
+   Fix: Split into auth.py and profile.py.
+
+10. HIGH | Event loop in sync context (activity_logger.py:66-72)
+    Priority: HIGH
+    Description: Creating event loop in sync function is anti-pattern.
+    Fix: Use proper async/await or background tasks.
+
+MEDIUM:
+
+11. MEDIUM | Inconsistent error handling
+    Priority: MEDIUM
+    Location: Various files
+    Description: Mix of HTTPException and error dicts.
+    Fix: Use HTTPException consistently.
+
+12. MEDIUM | Generic exception raising (razorpay_service.py:45,47)
+    Priority: MEDIUM
+    Description: Raises Exception instead of specific types.
+    Fix: Define custom exceptions (RazorpayError, RazorpayOrderCreationError).
+
+13. MEDIUM | JWTError context lost (jwt_utils.py:44,57)
+    Priority: MEDIUM
+    Description: Catches JWTError and raises new HTTPException without logging.
+    Fix: Log original error before raising.
+
+14. MEDIUM | Constraint naming inconsistent
+    Priority: MEDIUM
+    Location: app/models/subscription.py:26
+    Description: 'unique_active_subscription' doesn't include table name.
+    Fix: Use 'uq_user_subscriptions_user_status'
+
+15. MEDIUM | Inconsistent nullable usage
+    Priority: MEDIUM
+    Location: Various models
+    Description: Some fields use nullable=True, others default to nullable.
+    Fix: Always explicitly specify nullable.
+
+16. MEDIUM | Inconsistent field naming (snake_case vs camelCase)
+    Priority: MEDIUM
+    Location: Various schemas
+    Description: Mix of naming conventions.
+    Fix: Use snake_case consistently.
+
+17. MEDIUM | PaginationInfo schema misaligned
+    Priority: MEDIUM
+    Location: app/api/admin/schemas.py:95-107
+    Description: Schema uses page/limit but responses use current_page/page_size.
+    Fix: Align field names.
+
+18. MEDIUM | Created at hardcoded in responses
+    Priority: MEDIUM
+    Location: app/api/admin/users.py:122-124,171,251
+    Description: datetime.utcnow() hardcoded instead of from model.
+    Fix: Add created_at to User model.
+
+19. MEDIUM | URL path manipulation hardcoded
+    Priority: MEDIUM
+    Location: Multiple files
+    Description: Hardcoded "app/" to "/" replacement.
+    Fix: Use environment variable BASE_URL.
+
+20. MEDIUM | Fragile Cloudinary URL parsing
+    Priority: MEDIUM
+    Location: image_service.py, workout_media_service.py
+    Description: Relies on specific URL structure.
+    Fix: Store public_id in database.
+
+21. MEDIUM | Magic number for weeks per month
+    Priority: MEDIUM
+    Location: app/api/v1/activities.py:252-268
+    Description: range(1, 5) assumes 4 weeks.
+    Fix: Use calendar.monthcalendar().
+
+22. MEDIUM | Complex yearly aggregation logic
+    Priority: MEDIUM
+    Location: app/api/v1/activities.py:77-131
+    Description: 4 conditions with repeated code.
+    Fix: Extract to helper function.
+
+23. MEDIUM | Module-level service instantiation
+    Priority: MEDIUM
+    Location: Multiple files
+    Description: Services at module level, bad for testing.
+    Fix: Use dependency injection.
+
+24. MEDIUM | No version pinning in requirements.txt
+    Priority: MEDIUM
+    Location: requirements.txt
+    Description: No version constraints.
+    Fix: Pin versions or use poetry.
+
+25. MEDIUM | Missing type hints
+    Priority: MEDIUM
+    Location: Various functions
+    Description: Some functions lack return type hints.
+    Fix: Add type hints to all functions.
+
+26. MEDIUM | Unused function get_current_active_admin
+    Priority: MEDIUM
+    Location: app/api/admin/dependencies.py:67-76
+    Description: Defined but not used.
+    Fix: Remove or use appropriately.
+
+27. MEDIUM | Raw SQL instead of ORM
+    Priority: MEDIUM
+    Location: fitness_services.py, activities.py
+    Description: Uses text() for SQL.
+    Fix: Migrate to ORM.
+
+28. MEDIUM | No API docstrings
+    Priority: MEDIUM
+    Location: Various routes
+    Description: Endpoints lack docstrings.
+    Fix: Add docstrings explaining purpose, args, returns.
+
+29. MEDIUM | No logging configuration
+    Priority: MEDIUM
+    Location: app/main.py
+    Description: No logging configured.
+    Fix: Configure structured logging in main.py.
+
+30. MEDIUM | Warning printed instead of logged
+    Priority: MEDIUM
+    Location: app/utils/emailjs_utils.py:17
+    Description: Uses print for warning.
+    Fix: Use logger.warning()
+
+31. MEDIUM | Password in registration response
+    Priority: MEDIUM
+    Location: app/api/admin/users.py:67
+    Description: UserRegisterResponse includes password.
+    Fix: Remove from schema.
+
+32. MEDIUM | No meal type validation
+    Priority: MEDIUM
+    Location: app/api/v1/meals.py:15-42
+    Description: meal_type not validated.
+    Fix: Use enum or validator.
+
+33. MEDIUM | Validation in wrong place
+    Priority: MEDIUM
+    Location: v1/workouts.py, admin/workouts.py
+    Description: Activity level validation in handler.
+    Fix: Move to schema.
+
+34. MEDIUM | Optional auth hides errors
+    Priority: MEDIUM
+    Location: app/core/auth_dependencies.py:98-113
+    Description: Returns None on any exception without logging.
+    Fix: Log exception before returning.
+
+35. MEDIUM | No environment-based config
+    Priority: MEDIUM
+    Location: app/main.py
+    Description: No dev/prod configuration.
+    Fix: Use ENV variable to configure.
+
+36. MEDIUM | No request ID middleware
+    Priority: MEDIUM
+    Location: app/main.py
+    Description: No request ID tracking.
+    Fix: Add RequestIDMiddleware.
+
+37. MEDIUM | No standardized error responses
+    Priority: MEDIUM
+    Location: Entire codebase
+    Description: Inconsistent error responses.
+    Fix: Create global exception handler.
+
+38. MEDIUM | No input sanitization for XSS
+    Priority: MEDIUM
+    Location: Free-text fields
+    Description: No sanitization for description, bio fields.
+    Fix: Use bleach.clean() for HTML sanitization.
+
+39. MEDIUM | Inconsistent import ordering
+    Priority: MEDIUM
+    Location: Various files
+    Description: Imports not ordered (stdlib, third-party, local).
+    Fix: Use isort or pre-commit hooks.
+
+40. MEDIUM | No class docstrings
+    Priority: MEDIUM
+    Location: Various models/services
+    Description: Classes lack docstrings.
+    Fix: Add docstrings explaining purpose and attributes.
+
+LOW:
+
+41. LOW | No __all__ exports
+    Priority: LOW
+    Location: Various modules
+    Description: No __all__ to control public API.
+    Fix: Add __all__ to modules.
+
+42. LOW | Magic numbers
+    Priority: LOW
+    Location: Various files
+    Description: Numbers like 300, 60, 7, 100000 not named constants.
+    Fix: Define constants in app/core/constants.py
+
+43. LOW | Inconsistent string formatting
+    Priority: LOW
+    Location: Various files
+    Description: Mix of f-strings, .format(), concatenation.
+    Fix: Use f-strings consistently.
+
+44. LOW | No line length limit
+    Priority: LOW
+    Location: Various files
+    Description: Some lines exceed 120 characters.
+    Fix: Configure linter with line length limit.
+
+45. LOW | No trailing whitespace cleanup
+    Priority: LOW
+    Description: Trailing whitespace in some files.
+    Fix: Configure pre-commit hooks.
+
+46. LOW | No unused import cleanup
+    Priority: LOW
+    Description: Potential unused imports.
+    Fix: Use autoflake or pycln.
+
+47. LOW | No type checking in CI
+    Priority: LOW
+    Description: No mypy configured.
+    Fix: Add mypy to CI/CD.
+
+48. LOW | No code formatter
+    Priority: LOW
+    Description: No black configured.
+    Fix: Add black to pre-commit hooks.
+
+49. LOW | No pre-commit hooks
+    Priority: LOW
+    Description: No automated code quality checks.
+    Fix: Configure pre-commit hooks.
+
+50. LOW | No CI/CD pipeline
+    Priority: LOW
+    Description: No automated testing/deployment.
+    Fix: Set up GitHub Actions or similar.
+
+
+5. ARCHITECT RECOMMENDATIONS
+---------------------------
+
+Beyond the findings, here are proactive architectural improvements:
+
+**Infrastructure:**
+1. **Containerization**: Dockerize the application with multi-stage builds for production
+2. **Orchestration**: Deploy with Kubernetes or Docker Swarm for horizontal scaling
+3. **Load Balancing**: Use Nginx or AWS ALB with health checks and session affinity for WebSockets
+4. **CDN**: Implement CloudFront or Cloudinary CDN for static assets and media delivery
+5. **Database High Availability**: Set up PostgreSQL replication (primary + read replicas) with automatic failover
+6. **Redis Cluster**: Use Redis Cluster for distributed caching and WebSocket pub/sub
+7. **Monitoring Stack**: Deploy Prometheus + Grafana for metrics, Loki for logs, Tempo for tracing
+8. **Secrets Management**: Use AWS Secrets Manager, HashiCorp Vault, or Kubernetes Secrets instead of environment variables
+
+**Developer Experience:**
+1. **CI/CD Pipeline**: GitHub Actions with automated testing, linting, security scanning, and deployment
+2. **Pre-commit Hooks**: Configure black, isort, mypy, flake8, bandit for code quality
+3. **Testing Framework**: pytest with fixtures, coverage reporting, and integration tests
+4. **API Documentation**: Keep Swagger UI in dev, use static docs in prod, add examples
+5. **Local Development**: Docker Compose for local dev environment with all services
+6. **Database Migrations**: Use Alembic for version-controlled database schema changes
+7. **Code Quality Gates**: Enforce coverage thresholds, linting rules in CI/CD
+8. **Developer Portal**: Internal wiki with architecture docs, runbooks, onboarding guides
+
+**Observability:**
+1. **Structured Logging**: JSON logging with correlation IDs, request tracing
+2. **Distributed Tracing**: OpenTelemetry integration for tracing across services
+3. **Metrics**: Custom business metrics (user registrations, subscription conversions, activity stats)
+4. **Alerting**: PagerDuty or OpsGenie integration for critical alerts
+5. **Health Checks**: /health, /ready, /live endpoints for Kubernetes probes
+6. **Performance Monitoring**: APM (Application Performance Monitoring) with New Relic or Datadog
+7. **Error Tracking**: Sentry for error aggregation and alerting
+8. **Log Aggregation**: ELK Stack or CloudWatch Logs for centralized logging
+
+**Architecture Patterns:**
+1. **Background Jobs**: Celery with Redis for task queue (email sending, aggregation, notifications)
+2. **Event-Driven**: Implement event bus (RabbitMQ/Kafka) for decoupled services
+3. **CQRS**: Separate read and write models for complex queries
+4. **Circuit Breaker**: Implement circuit breaker pattern for external service calls (Razorpay, EmailJS, Cloudinary)
+5. **Retry Logic**: Exponential backoff retry for external API calls
+6. **Rate Limiting**: Distributed rate limiting with Redis (slowapi with Redis backend)
+7. **API Gateway**: Kong or AWS API Gateway for rate limiting, auth, logging
+8. **Microservices**: Consider splitting into user-service, activity-service, content-service, payment-service
+
+**Security Enhancements:**
+1. **OAuth2/OIDC**: Integrate OAuth2 for third-party login (Google, Facebook)
+2. **2FA**: Add two-factor authentication with TOTP or SMS
+3. **Session Management**: Implement session middleware with secure cookie flags
+4. **WAF**: Web Application Firewall (ModSecurity) for additional protection
+5. **Security Headers**: Add security headers middleware (CSP, HSTS, X-Frame-Options)
+6. **API Key Management**: Implement API keys for third-party integrations
+7. **Audit Logging**: Comprehensive audit log for all admin actions
+8. **Penetration Testing**: Regular security audits and penetration testing
+
+**Data Management:**
+1. **Data Archival**: Implement archival strategy for old activity data (S3 + Glacier)
+2. **Backup Strategy**: Automated backups with point-in-time recovery
+3. **Data Partitioning**: Consider time-based partitioning for activity_logs table
+4. **Read Replicas**: Route read queries to replicas for scaling
+5. **Connection Pooling**: PgBouncer for connection pooling
+6. **Database Optimization**: Regular vacuum/analyze, index maintenance
+7. **Data Privacy**: GDPR compliance with data export/deletion endpoints
+8. **Analytics**: Separate analytics database (ClickHouse/BigQuery) for reporting
+
+**Performance:**
+1. **Response Caching**: Cache GET endpoints with Redis (plans, workouts, meals)
+2. **Query Optimization**: Use EXPLAIN ANALYZE to identify slow queries
+3. **Database Indexing**: Add composite indexes for common query patterns
+4. **Lazy Loading**: Configure SQLAlchemy lazy loading appropriately
+5. **Bulk Operations**: Use bulk inserts/updates for large datasets
+6. **Async Operations**: Convert blocking I/O to async (aiohttp, asyncpg)
+7. **Connection Pooling**: Tune pool settings based on load testing
+8. **Load Testing**: Use k6 or Locust for performance testing
+
+
+6. PRIORITIZED ACTION PLAN
+----------------------------
+
+CRITICAL (fix before next deployment):
+1. Remove database echo=True in production (app/core/database.py:12)
+2. Remove password fallback to plain text comparison (app/api/v1/auth.py:44)
+3. Remove all print statements outputting OTP values (app/api/v1/auth.py:63,149)
+4. Add JWT secret strength validation (app/core/jwt_utils.py:11, admin/auth.py:33)
+5. Fix CORS configuration to remove localhost origins (app/main.py:18-27)
+6. Add brute force protection on login endpoints
+7. Remove password from registration response (app/api/admin/users.py:67)
+8. Replace bare except blocks with except Exception: (4 locations)
+9. Implement proper logging configuration (app/main.py)
+10. Add database connection pooling configuration
+
+HIGH (fix within this sprint):
+11. Add rate limiting globally using slowapi
+12. Implement webhook signature replay attack prevention
+13. Add CSRF protection for admin endpoints
+14. Improve file upload validation (MIME type, malware scanning)
+15. Add input validation to ProfileSetupSchema
+16. Implement RBAC for admin routes
+17. Add pagination to get_user_daily_activities
+18. Configure WebSocket with Redis Pub/Sub for scalability
+19. Add database indexes on frequently queried fields
+20. Implement Redis caching for frequently accessed data
+21. Move aggregation to background task queue
+22. Add health check endpoint
+23. Configure database query timeout
+24. Add request timeout middleware
+25. Enable response compression (GZip)
+26. Remove all debug print statements (20+ locations)
+27. Create shared password_utils module
+28. Split large files (fitness_services.py, activities.py, users.py, auth.py)
+29. Add basic test coverage (pytest)
+30. Fix event loop anti-pattern in activity_logger.py
+
+MEDIUM (plan for next sprint):
+31. Pin dependency versions in requirements.txt
+32. Add API versioning strategy
+33. Disable /docs in production
+34. Implement soft delete pattern
+35. Add notification deduplication
+36. Implement WebSocket heartbeat mechanism
+37. Add WebSocket authentication
+38. Implement retry logic for external services
+39. Add account lockout fields to User model
+40. Add last login tracking
+41. Keep revoked tokens for audit trail
+42. Add audit logging for sensitive operations
+43. Implement request ID middleware
+44. Configure structured logging (JSON format)
+45. Add Prometheus metrics
+46. Optimize dashboard queries (single query with multiple counts)
+47. Add composite index for activity_logs
+48. Use SQL aggregation instead of Python (weekly analytics)
+49. Implement streaming file uploads
+50. Configure read replica for database
+51. Add bulk insert optimization
+52. Create constants.py for magic numbers
+53. Implement environment-based configuration
+54. Add global exception handler
+55. Sanitize HTML input for XSS prevention
+56. Configure pre-commit hooks (black, isort, mypy)
+57. Add class docstrings to models/services
+58. Migrate raw SQL to ORM
+59. Fix constraint naming conventions
+60. Add type hints to all functions
+
+LOW (technical debt backlog):
+61. Implement soft delete with is_deleted field
+62. Add Docker containerization
+63. Set up CI/CD pipeline with GitHub Actions
+64. Implement Celery for background jobs
+65. Add OpenTelemetry for distributed tracing
+66. Implement Sentry for error tracking
+67. Add comprehensive integration tests
+68. Set up PostgreSQL replication
+69. Implement data archival strategy
+70. Add API gateway (Kong/AWS API Gateway)
+71. Implement OAuth2 for social login
+72. Add 2FA with TOTP
+73. Implement WAF (ModSecurity)
+74. Add security headers middleware
+75. Implement GDPR compliance endpoints
+76. Set up analytics database
+77. Add load testing with k6
+78. Implement CQRS pattern
+79. Add circuit breaker for external services
+80. Implement event-driven architecture with RabbitMQ
+
+
+7. SUMMARY SCORECARD
+--------------------
+
+Security score:        4 / 10
+- Critical vulnerabilities: 4 (database echo, password fallback, OTP exposure, weak JTI)
+- High-priority issues: 10 (no brute force protection, CORS misconfig, webhook bypass, etc.)
+- Medium-priority issues: 35 (no connection pooling, missing indexes, debug prints, etc.)
+- Low-priority issues: 18 (no version pinning, no soft delete, etc.)
+- No rate limiting, no CSRF protection, missing input validation, bare except blocks
+- JWT secrets not validated, file upload validation insufficient, admin RBAC missing
+
+Scalability score:     3 / 10
+- Critical bottlenecks: 10 (no connection pooling, no pagination, in-memory WebSocket, N+1 queries, no caching)
+- High-impact issues: 10 (synchronous webhook, large file uploads, missing indexes, no background jobs)
+- Medium-impact issues: 10 (inefficient searches, manual cascade deletion, no CDN)
+- Low-impact issues: 5 (no read replica, no query caching, no bulk operations)
+- No horizontal scaling support, no caching layer, no job queue, no database optimization
+
+Code quality score:    5 / 10
+- Critical issues: 10 (print statements in prod, bare except blocks, password fallback, no tests, code duplication)
+- High-priority issues: 10 (large files, anti-patterns, no type hints, no logging config)
+- Medium-priority issues: 20 (inconsistent error handling, raw SQL, no docstrings, magic numbers)
+- Low-priority issues: 15 (no pre-commit hooks, no CI/CD, import ordering)
+- Zero test coverage, large god functions/files, code duplication, no structured logging
+
+Overall health score:  4 / 10
+Verdict: The application has a solid architectural foundation with FastAPI, JWT auth, and proper separation of concerns, but requires immediate attention on security (critical vulnerabilities in production), scalability (no caching, pooling, or horizontal scaling support), and code quality (zero test coverage, debug code in production). The codebase is functional but not production-ready without addressing the critical security flaws and scalability bottlenecks. Priority should be on fixing security issues, adding basic testing, and implementing caching/connection pooling before scaling to production.
+

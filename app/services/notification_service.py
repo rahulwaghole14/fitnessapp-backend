@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.user_activity_log import UserActivityLog
+from app.models.notification import Notification
 from app.core.websocket_manager import websocket_manager
 from app.core.database import get_db
 from datetime import datetime
@@ -221,6 +222,117 @@ class NotificationService:
             "activity_counts": activity_counts,
             "active_connections": websocket_manager.get_connection_count()
         }
+
+    @staticmethod
+    async def create_notification(
+        db: Session,
+        user_id: int,
+        title: str,
+        message: str,
+        notification_type: Optional[str] = None,
+        priority: str = "normal",
+        metadata: Optional[dict] = None
+    ) -> Notification:
+        """
+        Centralized method to create user notifications, calculate unread count,
+        dispatch real-time WebSocket sync messages, and trigger push notifications.
+        """
+        # 1. Save notification to database
+        notification = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            priority=priority,
+            notification_metadata=metadata,
+            created_at=datetime.utcnow()
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(notification)
+        
+        logger.info(f"User notification created: id={notification.id}, user_id={user_id}, title='{title}'")
+
+        # 2. Calculate updated unread count
+        unread_count = db.query(Notification).filter(
+            Notification.user_id == user_id,
+            Notification.is_read == False,
+            Notification.is_deleted == False
+        ).count()
+
+        # 3. Dispatch WebSocket event frames natively using async send to user devices
+        try:
+            event_payload = {
+                "id": notification.id,
+                "user_id": notification.user_id,
+                "title": notification.title,
+                "message": notification.message,
+                "notification_type": notification.notification_type,
+                "priority": notification.priority,
+                "is_read": notification.is_read,
+                "is_deleted": notification.is_deleted,
+                "metadata": metadata,
+                "created_at": notification.created_at.isoformat() if notification.created_at else datetime.utcnow().isoformat(),
+                "read_at": notification.read_at.isoformat() if notification.read_at else None,
+                "unread_count": unread_count
+            }
+            await websocket_manager.send_to_all_user_devices(
+                user_id=user_id,
+                event="NEW_NOTIFICATION",
+                data=event_payload
+            )
+        except Exception as e:
+            logger.error(f"Failed to dispatch real-time WebSocket sync update: {e}")
+
+        # 4. Trigger push notification integration (readiness stub)
+        try:
+            from app.services.push_service import push_service
+            await push_service.send_push_notification(
+                user_id=user_id,
+                title=title,
+                body=message,
+                metadata=metadata
+            )
+        except Exception as e:
+            logger.error(f"Failed to trigger push notification stub: {e}")
+
+        return notification
+
+    @staticmethod
+    def create_notification_sync(
+        db: Session,
+        user_id: int,
+        title: str,
+        message: str,
+        notification_type: Optional[str] = None,
+        priority: str = "normal",
+        metadata: Optional[dict] = None
+    ):
+        """
+        Sync wrapper around create_notification. Safely schedules the notification coroutine
+        on the running FastAPI event loop without blocking or loop collisions.
+        """
+        import asyncio
+        coro = NotificationService.create_notification(
+            db=db,
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            priority=priority,
+            metadata=metadata
+        )
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(coro)
+        except RuntimeError:
+            # Fallback for standalone scripts/tests where no running loop is present
+            try:
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(coro)
+                loop.close()
+            except Exception as e:
+                logger.error(f"Failed to run create_notification fallback: {e}")
 
 
 # Create a singleton instance

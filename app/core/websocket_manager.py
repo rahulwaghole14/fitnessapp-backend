@@ -14,6 +14,8 @@ class WebSocketManager:
         # Store connection metadata (e.g., user info, connection time)
         self.connection_metadata: Dict[str, Dict[str, Any]] = {}
         self._connection_counter = 0
+        # Store user WebSocket connection IDs by user ID (supporting multiple devices)
+        self.user_connections: Dict[int, List[str]] = {}
 
     async def connect(self, websocket: WebSocket, connection_id: str = None) -> str:
         """Accept and store a WebSocket connection."""
@@ -133,6 +135,70 @@ class WebSocketManager:
             }
             for conn_id, metadata in self.connection_metadata.items()
         ]
+
+    async def connect_user(self, websocket: WebSocket, user_id: int) -> str:
+        """Accept a WebSocket connection for a specific user, supporting multiple devices."""
+        # Generate connection ID
+        connection_id = f"user_{user_id}_{self._connection_counter}"
+        self._connection_counter += 1
+
+        # Accept connection using standard behavior
+        await websocket.accept()
+
+        self.active_connections[connection_id] = websocket
+        self.connection_metadata[connection_id] = {
+            "connected_at": asyncio.get_event_loop().time(),
+            "connection_id": connection_id,
+            "user_id": user_id
+        }
+
+        # Add to user mapping
+        if user_id not in self.user_connections:
+            self.user_connections[user_id] = []
+        self.user_connections[user_id].append(connection_id)
+
+        logger.info(f"User {user_id} connected via WebSocket: {connection_id}. Total active devices: {len(self.user_connections[user_id])}")
+        return connection_id
+
+    def disconnect_user(self, connection_id: str, user_id: int):
+        """Remove a WebSocket connection for a specific user and device."""
+        # Remove connection using standard behavior
+        self.disconnect(connection_id)
+
+        # Remove from user mapping
+        if user_id in self.user_connections:
+            if connection_id in self.user_connections[user_id]:
+                self.user_connections[user_id].remove(connection_id)
+            if not self.user_connections[user_id]:
+                del self.user_connections[user_id]
+        
+        logger.info(f"User {user_id} device disconnected: {connection_id}")
+
+    async def send_to_user(self, message: dict, user_id: int):
+        """Send a message to all active WebSocket sessions for a specific user."""
+        if user_id not in self.user_connections:
+            logger.debug(f"No active WebSocket connections for user {user_id}")
+            return
+
+        # Take a copy of connections to safely iterate over async operations
+        connection_ids = list(self.user_connections[user_id])
+        for connection_id in connection_ids:
+            await self.send_personal_message(message, connection_id)
+
+    async def send_to_all_user_devices(self, user_id: int, event: str, data: dict):
+        """
+        Send a standardized event to all active WebSocket sessions for a specific user.
+        
+        Args:
+            user_id: The ID of the recipient user
+            event: Event type (e.g. "NEW_NOTIFICATION", "NOTIFICATION_READ")
+            data: Standardized event payload dict
+        """
+        event_message = {
+            "event": event,
+            "data": data
+        }
+        await self.send_to_user(event_message, user_id)
 
 
 # Global instance for the application

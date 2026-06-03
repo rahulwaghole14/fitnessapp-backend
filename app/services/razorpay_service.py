@@ -137,6 +137,25 @@ class RazorpayService:
                 # Log subscription extension activity
                 if user:
                     log_activity(db, payment.user_id, user.username, "subscription_purchase", f"{user.username} extended {plan.name}")
+                
+                # Trigger user notification
+                try:
+                    from app.services.notification_service import notification_service
+                    notification_service.create_notification_sync(
+                        db=db,
+                        user_id=payment.user_id,
+                        title="Subscription Extended",
+                        message=f"Premium active! Your subscription to {plan.name} has been extended successfully until {existing_subscription.end_date.isoformat() if hasattr(existing_subscription.end_date, 'isoformat') else existing_subscription.end_date}.",
+                        notification_type="SUBSCRIPTION_PURCHASED",
+                        priority="high",
+                        metadata={
+                            "subscription_id": str(existing_subscription.id),
+                            "plan_name": plan.name,
+                            "expiry_date": str(existing_subscription.end_date)
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to log subscription extended notification: {e}")
             else:
                 # Create new subscription
                 subscription = Subscription(
@@ -153,6 +172,25 @@ class RazorpayService:
                 # Log subscription purchase activity
                 if user:
                     log_activity(db, payment.user_id, user.username, "subscription_purchase", f"{user.username} purchased {plan.name}")
+                
+                # Trigger user notification
+                try:
+                    from app.services.notification_service import notification_service
+                    notification_service.create_notification_sync(
+                        db=db,
+                        user_id=payment.user_id,
+                        title="Premium Activated",
+                        message=f"Welcome to Premium! Your subscription to {plan.name} is now active until {end_date.isoformat() if hasattr(end_date, 'isoformat') else end_date}.",
+                        notification_type="SUBSCRIPTION_PURCHASED",
+                        priority="high",
+                        metadata={
+                            "subscription_id": str(subscription.id) if hasattr(subscription, "id") else None,
+                            "plan_name": plan.name,
+                            "expiry_date": str(end_date)
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to log premium activated notification: {e}")
 
         except Exception as e:
             logger.error(f"Failed to create subscription: {str(e)}")

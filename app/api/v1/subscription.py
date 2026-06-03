@@ -116,6 +116,24 @@ async def handle_razorpay_webhook(request: Request, db: Session = Depends(get_db
                 payment.status = 'failed'
                 payment.webhook_processed = True
                 db.commit()
+                
+                # Trigger user notification for failed payment
+                try:
+                    from app.services.notification_service import notification_service
+                    notification_service.create_notification_sync(
+                        db=db,
+                        user_id=payment.user_id,
+                        title="Payment Failed",
+                        message="Your subscription payment was unsuccessful. Please check your payment details or try again.",
+                        notification_type="PAYMENT_FAILED",
+                        priority="high",
+                        metadata={
+                            "order_id": payment_id,
+                            "amount": payment.amount
+                        }
+                    )
+                except Exception as e:
+                    print(f"Failed to trigger payment failed user notification: {e}")
             return {"status": "success", "message": "Payment failure recorded"}
         else:
             print(f"Unhandled webhook event: {event_type}")

@@ -2,7 +2,7 @@
 Common schemas used across admin API
 """
 from pydantic import BaseModel
-from typing import List, Generic, TypeVar
+from typing import List, Generic, TypeVar, Optional
 
 # Generic Type for Paginated Response
 T = TypeVar('T')

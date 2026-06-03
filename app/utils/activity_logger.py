@@ -4,12 +4,12 @@ from typing import Optional
 from app.models.user_activity_log import UserActivityLog
 from app.services.notification_service import notification_service
 
-# Define IST timezone using zoneinfo (Python 3.9+)
+# Define IST timezone using zoneinfo (Python 3.9+), with fallback to pytz for systems without tzdata (e.g. Windows)
 try:
     from zoneinfo import ZoneInfo
     IST = ZoneInfo("Asia/Kolkata")
-except ImportError:
-    # Fallback to pytz for older Python versions
+except Exception:
+    # Fallback to pytz for older Python or systems without built-in tzdata
     import pytz
     IST = pytz.timezone("Asia/Kolkata")
 
