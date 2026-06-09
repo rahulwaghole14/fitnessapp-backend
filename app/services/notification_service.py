@@ -334,6 +334,98 @@ class NotificationService:
             except Exception as e:
                 logger.error(f"Failed to run create_notification fallback: {e}")
 
+    @staticmethod
+    def check_and_trigger_sleep_notifications(db: Session, user_id: int, session):
+        """
+        Check sleep session duration and quality, and trigger appropriate notifications.
+        """
+        try:
+            from app.models.user import User
+            user = db.query(User).filter(User.id == user_id).first()
+            sleep_goal = user.sleep_goal if (user and user.sleep_goal is not None) else 480
+            
+            # 1. Sleep Goal Achieved
+            if session.duration_minutes >= sleep_goal:
+                existing = db.query(Notification).filter(
+                    Notification.user_id == user_id,
+                    Notification.notification_type == "SLEEP_GOAL_ACHIEVED"
+                ).all()
+                already_notified = any(
+                    (n.notification_metadata or {}).get("sleep_session_id") == str(session.id)
+                    for n in existing
+                )
+                if not already_notified:
+                    NotificationService.create_notification_sync(
+                        db=db,
+                        user_id=user_id,
+                        title="Sleep Goal Achieved 🌙",
+                        message="Great job! You reached your sleep goal and are building healthy sleep habits.",
+                        notification_type="SLEEP_GOAL_ACHIEVED",
+                        priority="normal",
+                        metadata={"sleep_session_id": str(session.id), "duration_minutes": session.duration_minutes, "sleep_goal": sleep_goal}
+                    )
+            
+            # 2. Sleep Quality Achievement (score >= 90)
+            if session.sleep_score >= 90:
+                existing = db.query(Notification).filter(
+                    Notification.user_id == user_id,
+                    Notification.notification_type == "SLEEP_ACHIEVEMENT"
+                ).all()
+                already_notified = any(
+                    (n.notification_metadata or {}).get("sleep_session_id") == str(session.id)
+                    for n in existing
+                )
+                if not already_notified:
+                    NotificationService.create_notification_sync(
+                        db=db,
+                        user_id=user_id,
+                        title="Excellent Sleep! 🌙",
+                        message="Your sleep quality was exceptional last night.",
+                        notification_type="SLEEP_ACHIEVEMENT",
+                        priority="normal",
+                        metadata={"sleep_session_id": str(session.id), "sleep_score": session.sleep_score}
+                    )
+        except Exception as e:
+            logger.error(f"Failed to check and trigger sleep notifications: {e}")
+
+    @staticmethod
+    def trigger_engagement_notifications(db: Session, user_id: int):
+        """
+        Trigger welcome and profile completed notifications for a user if they haven't been sent already.
+        """
+        try:
+            # 1. Welcome Notification
+            existing_welcome = db.query(Notification).filter(
+                Notification.user_id == user_id,
+                Notification.notification_type == "WELCOME"
+            ).first()
+            if not existing_welcome:
+                NotificationService.create_notification_sync(
+                    db=db,
+                    user_id=user_id,
+                    title="Welcome to Fitness App 👋",
+                    message="Your fitness journey starts now.",
+                    notification_type="WELCOME",
+                    priority="normal"
+                )
+
+            # 2. Profile Completed Notification
+            existing_profile = db.query(Notification).filter(
+                Notification.user_id == user_id,
+                Notification.notification_type == "PROFILE_COMPLETED"
+            ).first()
+            if not existing_profile:
+                NotificationService.create_notification_sync(
+                    db=db,
+                    user_id=user_id,
+                    title="Profile Completed ✅",
+                    message="Your profile is ready. Let's start achieving your goals.",
+                    notification_type="PROFILE_COMPLETED",
+                    priority="normal"
+                )
+        except Exception as e:
+            logger.error(f"Failed to trigger engagement notifications: {e}")
+
 
 # Create a singleton instance
 notification_service = NotificationService()

@@ -278,12 +278,23 @@ def update_profile(data: ProfileSetupSchema, current_user: User = Depends(get_cu
     current_user.bmi = data.bmi
     current_user.weight_goal = data.weight_goal
     current_user.activity_level = data.activity_level
+    if data.timezone is not None:
+        current_user.timezone = data.timezone
+    if data.sleep_goal is not None:
+        current_user.sleep_goal = data.sleep_goal
 
     db.commit()
     db.refresh(current_user)
 
     # Log profile update activity
     log_activity(db, current_user.id, current_user.username, "profile_update", f"{current_user.username} updated profile")
+
+    # Trigger engagement notifications (WELCOME and PROFILE_COMPLETED)
+    try:
+        from app.services.notification_service import notification_service
+        notification_service.trigger_engagement_notifications(db, current_user.id)
+    except Exception as e:
+        print(f"Failed to trigger engagement notifications: {e}")
 
     return {
         "message": "Profile updated successfully",

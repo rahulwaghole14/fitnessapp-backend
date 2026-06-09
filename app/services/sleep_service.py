@@ -150,6 +150,8 @@ class SleepService:
                     "wake_date": str(wake_date)
                 }
             )
+            # Trigger sleep goal / quality achievements
+            notification_service.check_and_trigger_sleep_notifications(db, user_id, session)
         except Exception as e:
             print(f"Failed to log sleep analysis user notification: {e}")
 
@@ -263,6 +265,8 @@ class SleepService:
                     "wake_date": str(new_wake_date)
                 }
             )
+            # Trigger sleep goal / quality achievements
+            notification_service.check_and_trigger_sleep_notifications(db, user_id, session)
         except Exception as e:
             print(f"Failed to log sleep analysis user update notification: {e}")
 

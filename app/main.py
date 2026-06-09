@@ -12,6 +12,12 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Fitness App API")
 
+@app.on_event("startup")
+async def startup_event():
+    import asyncio
+    from app.services.scheduler import start_scheduler
+    asyncio.create_task(start_scheduler())
+
 # Configure CORS for admin frontend
 app.add_middleware(
     CORSMiddleware,

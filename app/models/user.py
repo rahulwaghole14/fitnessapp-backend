@@ -22,6 +22,8 @@ class User(Base):
     weight_goal = Column(Float, nullable=True)
     activity_level = Column(String, nullable=True)
     profile_image = Column(String, nullable=True)
+    timezone = Column(String(100), default="Asia/Kolkata", nullable=False)
+    sleep_goal = Column(Integer, default=480, nullable=False)
 
     # Relationship with DailyActivity
     daily_activities = relationship("DailyActivity", back_populates="user")

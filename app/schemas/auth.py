@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 class RegisterSchema(BaseModel):
     username : str
@@ -39,6 +40,8 @@ class ProfileSetupSchema(BaseModel):
     bmi:float
     weight_goal:float
     activity_level:str
+    timezone: Optional[str] = "Asia/Kolkata"
+    sleep_goal: Optional[int] = 480
 
 class ChangePasswordSchema(BaseModel):
     old_password: str
