@@ -32,9 +32,6 @@ def get_workouts_for_user(current_user: User = Depends(get_current_user), db: Se
     else:
         workout_category = "maintain"
 
-    print(f"User: {current_user.id}, weight: {current_user.weight}, goal: {current_user.weight_goal}")
-    print(f"User activity_level: {current_user.activity_level}")
-    print(f"Calculated workout_category: {workout_category}")
 
     # Query workouts based on user's activity_level and calculated category
     query = db.query(Workout)
@@ -45,14 +42,8 @@ def get_workouts_for_user(current_user: User = Depends(get_current_user), db: Se
     if workout_category:
         query = query.filter(Workout.workout_category == workout_category)
 
-    print(f"Final query: {query}")
     workouts = query.all()
-    print(f"Found {len(workouts)} workouts")
     
-    # Print workout details for debugging
-    for w in workouts:
-        print(f"Workout: {w.id}, {w.title}, level: {w.activity_level}, category: {w.workout_category}")
-
     # Convert to response objects with proper URL handling
     workout_responses = []
     for workout in workouts:
