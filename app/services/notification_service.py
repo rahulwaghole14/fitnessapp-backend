@@ -284,17 +284,65 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to dispatch real-time WebSocket sync update: {e}")
 
-        # 4. Trigger push notification integration (readiness stub)
+        # 4. Trigger push notification integration
         try:
             from app.services.push_service import push_service
-            await push_service.send_push_notification(
-                user_id=user_id,
-                title=title,
-                body=message,
-                metadata=metadata
-            )
+            from app.models.notification_preference import NotificationPreference
+            
+            # Fetch user preferences
+            pref = db.query(NotificationPreference).filter(
+                NotificationPreference.user_id == user_id
+            ).first()
+            
+            global_push = pref.push_notifications if pref else True
+            
+            category_map = {
+                "WELCOME": "engagement_notifications",
+                "PROFILE_COMPLETED": "engagement_notifications",
+                "INACTIVITY_REMINDER": "engagement_notifications",
+                "SLEEP_ANALYSIS": "sleep_notifications",
+                "SLEEP_GOAL_ACHIEVED": "sleep_notifications",
+                "SLEEP_ACHIEVEMENT": "sleep_notifications",
+                "MEAL_REMINDER_BREAKFAST": "meal_reminders",
+                "MEAL_REMINDER_LUNCH": "meal_reminders",
+                "MEAL_REMINDER_DINNER": "meal_reminders",
+                "HYDRATION_REMINDER": "hydration_reminders",
+                "SUBSCRIPTION_PURCHASED": "subscription_notifications",
+                "SUBSCRIPTION_EXPIRED": "subscription_notifications",
+                "SUBSCRIPTION_EXPIRING": "subscription_notifications",
+                "PAYMENT_FAILED": "subscription_notifications"
+            }
+            
+            category_attribute = category_map.get(notification_type)
+            category_enabled = getattr(pref, category_attribute, True) if (pref and category_attribute) else True
+            
+            if global_push and category_enabled:
+                high_priority_types = {
+                    "PAYMENT_FAILED",
+                    "SUBSCRIPTION_EXPIRED",
+                    "SUBSCRIPTION_EXPIRING",
+                    "SUBSCRIPTION_PURCHASED"
+                }
+                
+                is_high_priority = notification_type in high_priority_types
+                is_ws_connected = len(websocket_manager.user_connections.get(user_id, [])) > 0
+                
+                # High priority is sent always. Low priority only when offline (WS disconnected)
+                if is_high_priority or not is_ws_connected:
+                    await push_service.send_to_user(
+                        db=db,
+                        user_id=user_id,
+                        title=title,
+                        body=message,
+                        metadata=metadata
+                    )
+                    logger.info(f"FCM push dispatched for user {user_id} (WS connected: {is_ws_connected})")
+                else:
+                    logger.debug(f"Skipping FCM push for user {user_id} because WebSocket is active (Low Priority)")
+            else:
+                logger.debug(f"Skipping FCM push for user {user_id} due to preferences (global={global_push}, category_enabled={category_enabled})")
         except Exception as e:
-            logger.error(f"Failed to trigger push notification stub: {e}")
+            logger.error(f"Failed to trigger FCM push notification: {e}")
 
         return notification
 

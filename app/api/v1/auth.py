@@ -92,6 +92,16 @@ def register(user: RegisterSchema, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
 
+    # Create default notification preference record
+    try:
+        from app.models.notification_preference import NotificationPreference
+        pref = NotificationPreference(user_id=new_user.id)
+        db.add(pref)
+        db.commit()
+    except Exception as pref_err:
+        db.rollback()
+        print(f"Failed to create default notification preference: {pref_err}")
+
     # Log user registration activity
     log_activity(db, new_user.id, new_user.username, "signup", f"{new_user.username} signed up")
 

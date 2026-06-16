@@ -23,10 +23,13 @@ from .notifications import (
     mark_user_notification_as_read, mark_all_user_notifications_as_read,
     delete_user_notification
 )
+from .device_tokens import register_device_token, unregister_device_token
+from .preferences import get_notification_preferences, update_notification_preferences
 
 from app.schemas.notification import (
     NotificationListResponse, UnreadCountResponse,
-    NotificationMarkReadResponse, NotificationSuccessResponse
+    NotificationMarkReadResponse, NotificationSuccessResponse,
+    DeviceTokenResponse, NotificationPreferenceResponse
 )
 
 from app.schemas.subscription import Plan
@@ -45,6 +48,13 @@ router.get("/notifications/unread-count", response_model=UnreadCountResponse)(ge
 router.put("/notifications/{id}/read", response_model=NotificationMarkReadResponse)(mark_user_notification_as_read)
 router.put("/notifications/mark-all-read", response_model=NotificationSuccessResponse)(mark_all_user_notifications_as_read)
 router.delete("/notifications/{id}", response_model=NotificationSuccessResponse)(delete_user_notification)
+
+# Device Token & Preference Endpoints
+router.post("/device-tokens/register", response_model=DeviceTokenResponse)(register_device_token)
+router.post("/device-tokens/unregister", response_model=NotificationSuccessResponse)(unregister_device_token)
+router.get("/notifications/preferences", response_model=NotificationPreferenceResponse)(get_notification_preferences)
+router.put("/notifications/preferences", response_model=NotificationPreferenceResponse)(update_notification_preferences)
+
 
 #Auth endpoints
 router.post("/register")(register),

@@ -36,3 +36,10 @@ class User(Base):
 
     # Relationship with RefreshToken
     refresh_tokens = relationship("RefreshToken", back_populates="user")
+
+    # Relationship with DeviceToken
+    device_tokens = relationship("DeviceToken", back_populates="user", cascade="all, delete-orphan")
+
+    # Relationship with NotificationPreference
+    notification_preference = relationship("NotificationPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
+

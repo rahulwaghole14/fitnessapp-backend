@@ -40,3 +40,52 @@ class NotificationMarkReadResponse(BaseModel):
 class NotificationSuccessResponse(BaseModel):
     message: str
     success: bool
+
+
+class DeviceTokenRegister(BaseModel):
+    device_token: str
+    platform: str
+    device_name: Optional[str] = None
+
+
+class DeviceTokenUnregister(BaseModel):
+    device_token: str
+
+
+class DeviceTokenResponse(BaseModel):
+    id: int
+    user_id: int
+    device_token: str
+    platform: str
+    device_name: Optional[str] = None
+    is_active: bool
+    last_seen: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceResponse(BaseModel):
+    id: int
+    user_id: int
+    push_notifications: bool
+    meal_reminders: bool
+    hydration_reminders: bool
+    sleep_notifications: bool
+    subscription_notifications: bool
+    engagement_notifications: bool
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceUpdate(BaseModel):
+    push_notifications: Optional[bool] = None
+    meal_reminders: Optional[bool] = None
+    hydration_reminders: Optional[bool] = None
+    sleep_notifications: Optional[bool] = None
+    subscription_notifications: Optional[bool] = None
+    engagement_notifications: Optional[bool] = None
+

@@ -6,6 +6,9 @@ from .user_activity_log import UserActivityLog
 from .explore_activity import ExploreActivity
 from .sleep import SleepSession, UserDailySleep, UserMonthlySleep, UserYearlySleep
 from .notification import Notification
+from .device_token import DeviceToken
+from .notification_preference import NotificationPreference
+from .refresh_token import RefreshToken
 
 __all__ = [
     "User",
@@ -18,5 +21,8 @@ __all__ = [
     "UserDailySleep",
     "UserMonthlySleep",
     "UserYearlySleep",
-    "Notification"
+    "Notification",
+    "DeviceToken",
+    "NotificationPreference",
+    "RefreshToken"
 ]
