@@ -69,7 +69,7 @@ admin_router.get("/dashboard/overview", response_model=OverviewResponse)(get_ove
 admin_router.get("/dashboard/users", response_model=list[UserResponsedash])(get_all_users)
 
 # User Management Routes
-admin_router.post("/register-user", response_model=UserRegisterSchema)(register_user)
+admin_router.post("/register-user", response_model=UserRegisterResponse)(register_user)
 admin_router.get("/users", response_model=dict)(get_users_paginated)
 admin_router.get("/user/{user_id}", response_model=UserResponse)(get_user_by_id)
 admin_router.put("/update-user/{user_id}", response_model=UserResponse)(update_user)
