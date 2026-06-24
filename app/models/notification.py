@@ -16,6 +16,12 @@ class Notification(Base):
     is_read = Column(Boolean, default=False, nullable=False, index=True)
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)
     notification_metadata = Column("metadata", JSON, nullable=True)
+    source_module = Column(String(100), nullable=True)
+    delivery_status = Column(String(50), default="PENDING", nullable=True)
+    push_sent = Column(Boolean, default=False, nullable=False)
+    push_sent_at = Column(DateTime(timezone=True), nullable=True)
+    websocket_sent = Column(Boolean, default=False, nullable=False)
+    websocket_sent_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,

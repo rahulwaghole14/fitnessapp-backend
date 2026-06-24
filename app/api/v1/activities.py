@@ -50,6 +50,10 @@ def store_daily_activity(
             data.distance_km, data.calories, data.active_minutes
         )
 
+        # Reschedule inactivity reminder job
+        from app.services.notification_job_generator import reschedule_inactivity_reminder
+        reschedule_inactivity_reminder(db, current_user_id)
+
         #Check if monthly summarization should be triggered
         should_summarize = fitness_service.should_trigger_monthly_summary(
             current_user_id, data.activity_date

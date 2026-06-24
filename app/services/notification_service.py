@@ -4,7 +4,7 @@ from app.models.user_activity_log import UserActivityLog
 from app.models.notification import Notification
 from app.core.websocket_manager import websocket_manager
 from app.core.database import get_db
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 import asyncio
 import logging
@@ -231,7 +231,9 @@ class NotificationService:
         message: str,
         notification_type: Optional[str] = None,
         priority: str = "normal",
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        source_module: Optional[str] = None,
+        delivery_status: Optional[str] = "PENDING"
     ) -> Notification:
         """
         Centralized method to create user notifications, calculate unread count,
@@ -245,6 +247,10 @@ class NotificationService:
             notification_type=notification_type,
             priority=priority,
             notification_metadata=metadata,
+            source_module=source_module,
+            delivery_status=delivery_status,
+            push_sent=False,
+            websocket_sent=False,
             created_at=datetime.utcnow()
         )
         db.add(notification)
@@ -281,6 +287,11 @@ class NotificationService:
                 event="NEW_NOTIFICATION",
                 data=event_payload
             )
+            # Mark WebSocket as sent
+            notification.websocket_sent = True
+            notification.websocket_sent_at = datetime.now(timezone.utc)
+            notification.delivery_status = "SENT"
+            db.commit()
         except Exception as e:
             logger.error(f"Failed to dispatch real-time WebSocket sync update: {e}")
 
@@ -329,13 +340,18 @@ class NotificationService:
                 
                 # High priority is sent always. Low priority only when offline (WS disconnected)
                 if is_high_priority or not is_ws_connected:
-                    await push_service.send_to_user(
+                    push_success = await push_service.send_to_user(
                         db=db,
                         user_id=user_id,
                         title=title,
                         body=message,
                         metadata=metadata
                     )
+                    if push_success:
+                        notification.push_sent = True
+                        notification.push_sent_at = datetime.now(timezone.utc)
+                        notification.delivery_status = "SENT"
+                        db.commit()
                     logger.info(f"FCM push dispatched for user {user_id} (WS connected: {is_ws_connected})")
                 else:
                     logger.debug(f"Skipping FCM push for user {user_id} because WebSocket is active (Low Priority)")

@@ -9,6 +9,7 @@ from .notification import Notification
 from .device_token import DeviceToken
 from .notification_preference import NotificationPreference
 from .refresh_token import RefreshToken
+from .scheduled_job import ScheduledNotificationJob
 
 __all__ = [
     "User",
@@ -24,5 +25,6 @@ __all__ = [
     "Notification",
     "DeviceToken",
     "NotificationPreference",
-    "RefreshToken"
+    "RefreshToken",
+    "ScheduledNotificationJob"
 ]

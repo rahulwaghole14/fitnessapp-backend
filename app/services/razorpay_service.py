@@ -156,6 +156,13 @@ class RazorpayService:
                     )
                 except Exception as e:
                     logger.error(f"Failed to log subscription extended notification: {e}")
+
+                # Generate expiry warning jobs
+                try:
+                    from app.services.notification_job_generator import generate_subscription_expiry_jobs
+                    generate_subscription_expiry_jobs(db, existing_subscription)
+                except Exception as e:
+                    logger.error(f"Failed to generate subscription expiry jobs: {e}")
             else:
                 # Create new subscription
                 subscription = Subscription(
@@ -167,6 +174,7 @@ class RazorpayService:
                     status='active'
                 )
                 db.add(subscription)
+                db.flush()  # Populate subscription.id
                 logger.info(f"Created new subscription: {subscription.id}")
                 
                 # Log subscription purchase activity
@@ -191,6 +199,13 @@ class RazorpayService:
                     )
                 except Exception as e:
                     logger.error(f"Failed to log premium activated notification: {e}")
+
+                # Generate expiry warning jobs
+                try:
+                    from app.services.notification_job_generator import generate_subscription_expiry_jobs
+                    generate_subscription_expiry_jobs(db, subscription)
+                except Exception as e:
+                    logger.error(f"Failed to generate subscription expiry jobs: {e}")
 
         except Exception as e:
             logger.error(f"Failed to create subscription: {str(e)}")

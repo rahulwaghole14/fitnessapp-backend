@@ -16,14 +16,18 @@ app = FastAPI(title="Fitness App API")
 async def startup_event():
     import asyncio
     from app.services.scheduler import start_scheduler
+    from app.services.notification_worker import start_notification_worker
+    from app.services.notification_job_generator import start_daily_job_generator
     asyncio.create_task(start_scheduler())
+    asyncio.create_task(start_notification_worker())
+    asyncio.create_task(start_daily_job_generator())
 
 # Configure CORS for admin frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # React Admin Dev
-        "http://192.168.1.6:3000",
+        
         # Add your production admin domain here
         "https://fitness-app-dashboard-eight.vercel.app"
         # "https://admin.yourdomain.com"

@@ -94,156 +94,43 @@ def has_hydration_notified_for_slot(db: Session, user_id: int, user_today: date,
 
 async def meal_reminder_job():
     """Check local times and send breakfast/lunch/dinner reminders."""
-    logger.info("[SCHEDULER] Running meal_reminder_job")
-    db = SessionLocal()
-    try:
-        users = db.query(User).all()
-        for user in users:
-            user_tz, local_time = get_user_tz_and_local_time(user)
-            user_today = local_time.date()
-            user_current_time = local_time.time()
-            
-            for notif_type, details in MEAL_TEMPLATES.items():
-                target_time = time(details["hour"], details["minute"])
-                if user_current_time >= target_time:
-                    # Check if already notified today
-                    if not has_meal_notified_today(db, user.id, notif_type, user_today, user_tz):
-                        await notification_service.create_notification(
-                            db=db,
-                            user_id=user.id,
-                            title=details["title"],
-                            message=details["message"],
-                            notification_type=notif_type,
-                            priority="normal",
-                            metadata={"meal_date": str(user_today)}
-                        )
-                        logger.info(f"Sent {notif_type} to user {user.id}")
-    except Exception as e:
-        logger.error(f"[SCHEDULER] Error in meal_reminder_job: {e}")
-    finally:
-        db.close()
+    logger.info("[SCHEDULER] Running meal_reminder_job - Deprecated (Replaced by Scheduled Jobs Worker)")
+    return
 
 
 async def hydration_reminder_job():
     """Check local times and send hydration reminders for configured slots."""
-    logger.info("[SCHEDULER] Running hydration_reminder_job")
-    db = SessionLocal()
-    try:
-        users = db.query(User).all()
-        for user in users:
-            user_tz, local_time = get_user_tz_and_local_time(user)
-            user_today = local_time.date()
-            user_current_time = local_time.time()
-            
-            for slot_str in HYDRATION_SLOTS:
-                h, m = map(int, slot_str.split(":"))
-                slot_time = time(h, m)
-                if user_current_time >= slot_time:
-                    if not has_hydration_notified_for_slot(db, user.id, user_today, slot_str, user_tz):
-                        await notification_service.create_notification(
-                            db=db,
-                            user_id=user.id,
-                            title=HYDRATION_TEMPLATE["title"],
-                            message=HYDRATION_TEMPLATE["message"],
-                            notification_type="HYDRATION_REMINDER",
-                            priority="normal",
-                            metadata={"slot": slot_str, "date": str(user_today)}
-                        )
-                        logger.info(f"Sent HYDRATION_REMINDER slot {slot_str} to user {user.id}")
-    except Exception as e:
-        logger.error(f"[SCHEDULER] Error in hydration_reminder_job: {e}")
-    finally:
-        db.close()
+    logger.info("[SCHEDULER] Running hydration_reminder_job - Deprecated (Replaced by Scheduled Jobs Worker)")
+    return
 
 
 async def subscription_expiry_job():
     """Query subscriptions, flag expired ones, and warn users 7 days / 1 day before expiration."""
-    logger.info("[SCHEDULER] Running subscription_expiry_job")
+    logger.info("[SCHEDULER] Running subscription_expiry_job - Deprecated (Replaced by Scheduled Jobs Worker)")
     db = SessionLocal()
     try:
-        # Get today's UTC/server date
+        # Check active subscriptions and mark expired status only
+        from app.models.subscription import Subscription
+        from datetime import date
         today = date.today()
-        
-        # Check active subscriptions
         active_subscriptions = db.query(Subscription).filter(Subscription.status == "active").all()
-        
         for sub in active_subscriptions:
-            user_id = sub.user_id
-            expiry_date = sub.end_date
-            
-            # 1. Check if already expired
-            if expiry_date <= today:
-                # Update database status
+            if sub.end_date <= today:
                 sub.status = "expired"
                 db.commit()
-                
-                # Check duplicate notification
-                existing = db.query(Notification).filter(
-                    Notification.user_id == user_id,
-                    Notification.notification_type == "SUBSCRIPTION_EXPIRED"
-                ).all()
-                already_sent = any((n.notification_metadata or {}).get("subscription_id") == sub.id for n in existing)
-                
-                if not already_sent:
-                    await notification_service.create_notification(
-                        db=db,
-                        user_id=user_id,
-                        title="Premium Subscription Expired",
-                        message="Your premium subscription has expired.",
-                        notification_type="SUBSCRIPTION_EXPIRED",
-                        priority="high",
-                        metadata={"subscription_id": sub.id, "end_date": str(expiry_date)}
-                    )
-                    logger.info(f"Sent SUBSCRIPTION_EXPIRED for subscription {sub.id}")
-            
-            # 2. Check 7 days warning
-            elif (expiry_date - today).days == 7:
-                existing = db.query(Notification).filter(
-                    Notification.user_id == user_id,
-                    Notification.notification_type == "SUBSCRIPTION_EXPIRING"
-                ).all()
-                already_sent = any(
-                    (n.notification_metadata or {}).get("subscription_id") == sub.id and 
-                    (n.notification_metadata or {}).get("days_left") == 7 
-                    for n in existing
+                # Create the expired notification immediately (event-based fallback)
+                from app.services.notification_service import notification_service
+                await notification_service.create_notification(
+                    db=db,
+                    user_id=sub.user_id,
+                    title="Premium Subscription Expired",
+                    message="Your premium subscription has expired.",
+                    notification_type="SUBSCRIPTION_EXPIRED",
+                    priority="high",
+                    metadata={"subscription_id": sub.id, "end_date": str(sub.end_date)}
                 )
-                if not already_sent:
-                    await notification_service.create_notification(
-                        db=db,
-                        user_id=user_id,
-                        title="Premium Expiring Soon",
-                        message="Your premium subscription will expire in 7 days.",
-                        notification_type="SUBSCRIPTION_EXPIRING",
-                        priority="high",
-                        metadata={"subscription_id": sub.id, "days_left": 7, "end_date": str(expiry_date)}
-                    )
-                    logger.info(f"Sent 7-day SUBSCRIPTION_EXPIRING for subscription {sub.id}")
-            
-            # 3. Check 1 day warning
-            elif (expiry_date - today).days == 1:
-                existing = db.query(Notification).filter(
-                    Notification.user_id == user_id,
-                    Notification.notification_type == "SUBSCRIPTION_EXPIRING"
-                ).all()
-                already_sent = any(
-                    (n.notification_metadata or {}).get("subscription_id") == sub.id and 
-                    (n.notification_metadata or {}).get("days_left") == 1 
-                    for n in existing
-                )
-                if not already_sent:
-                    await notification_service.create_notification(
-                        db=db,
-                        user_id=user_id,
-                        title="Premium Ends Tomorrow",
-                        message="Renew your subscription to continue enjoying premium benefits.",
-                        notification_type="SUBSCRIPTION_EXPIRING",
-                        priority="high",
-                        metadata={"subscription_id": sub.id, "days_left": 1, "end_date": str(expiry_date)}
-                    )
-                    logger.info(f"Sent 1-day SUBSCRIPTION_EXPIRING for subscription {sub.id}")
-                    
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error in subscription_expiry_job: {e}")
+        logger.error(f"[SCHEDULER] Error in subscription_expiry_job logic: {e}")
         db.rollback()
     finally:
         db.close()
@@ -251,92 +138,17 @@ async def subscription_expiry_job():
 
 async def inactivity_reminder_job():
     """Verify if a user has logged any activity in the last 3 days, and issue inactivity alerts."""
-    logger.info("[SCHEDULER] Running inactivity_reminder_job")
-    db = SessionLocal()
-    try:
-        users = db.query(User).all()
-        three_days_ago = datetime.utcnow() - timedelta(days=3)
-        three_days_ago_date = three_days_ago.date()
-        
-        for user in users:
-            user_id = user.id
-            
-            # 1. Check if user already received INACTIVITY_REMINDER in the last 3 days
-            recent_inactivity_notif = db.query(Notification).filter(
-                Notification.user_id == user_id,
-                Notification.notification_type == "INACTIVITY_REMINDER",
-                Notification.created_at >= three_days_ago
-            ).first()
-            if recent_inactivity_notif:
-                # Max 1 inactivity notification every 3 days. Skip!
-                continue
-                
-            # 2. Check Daily Activities
-            has_daily_activity = db.query(DailyActivity).filter(
-                DailyActivity.user_id == user_id,
-                DailyActivity.date >= three_days_ago_date
-            ).first() is not None
-            if has_daily_activity:
-                continue
-                
-            # 3. Check Sleep Sessions
-            has_sleep = db.query(SleepSession).filter(
-                SleepSession.user_id == user_id,
-                SleepSession.start_time >= three_days_ago,
-                SleepSession.deleted_at.is_(None)
-            ).first() is not None
-            if has_sleep:
-                continue
-                
-            # 4. Check other User Activity Logs (exclude inactivity reminders log and system logs)
-            has_activity_log = db.query(UserActivityLog).filter(
-                UserActivityLog.user_id == user_id,
-                UserActivityLog.created_at >= three_days_ago,
-                UserActivityLog.activity_type != "inactivity_reminder"
-            ).first() is not None
-            if has_activity_log:
-                continue
-                
-            # If we reached here, the user has been inactive for 3 days and has not been notified recently.
-            await notification_service.create_notification(
-                db=db,
-                user_id=user_id,
-                title="We Miss You 👋",
-                message="You haven't logged activity recently. Let's get back on track.",
-                notification_type="INACTIVITY_REMINDER",
-                priority="normal"
-            )
-            logger.info(f"Sent INACTIVITY_REMINDER to user {user_id}")
-            
-    except Exception as e:
-        logger.error(f"[SCHEDULER] Error in inactivity_reminder_job: {e}")
-    finally:
-        db.close()
+    logger.info("[SCHEDULER] Running inactivity_reminder_job - Deprecated (Replaced by Scheduled Jobs Worker)")
+    return
 
 
 async def start_scheduler():
-    """Main centralized scheduler loop."""
-    logger.info("[SCHEDULER] Starting centralized background loop...")
+    """Main centralized scheduler loop (kept for backwards compatibility)."""
+    logger.info("[SCHEDULER] Starting deprecated centralized background loop...")
     while True:
-        try:
-            await meal_reminder_job()
-        except Exception as e:
-            logger.error(f"[SCHEDULER] Error during meal reminder task: {e}")
-            
-        try:
-            await hydration_reminder_job()
-        except Exception as e:
-            logger.error(f"[SCHEDULER] Error during hydration reminder task: {e}")
-            
         try:
             await subscription_expiry_job()
         except Exception as e:
-            logger.error(f"[SCHEDULER] Error during subscription expiry task: {e}")
-            
-        try:
-            await inactivity_reminder_job()
-        except Exception as e:
-            logger.error(f"[SCHEDULER] Error during inactivity reminder task: {e}")
-            
+            logger.error(f"[SCHEDULER] Error during subscription expiry cleanup: {e}")
         logger.info("[SCHEDULER] Job tick completed. Sleeping for 300 seconds...")
         await asyncio.sleep(300)

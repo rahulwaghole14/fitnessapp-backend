@@ -127,6 +127,10 @@ class SleepService:
         db.commit()
         db.refresh(session)
 
+        # Reschedule inactivity reminder
+        from app.services.notification_job_generator import reschedule_inactivity_reminder
+        reschedule_inactivity_reminder(db, user_id)
+
         # Trigger Cascade Aggregation Updates
         wake_date = get_wake_date(session.end_time, session.timezone)
         SleepAggregationService.update_daily_sleep_aggregation(db, user_id, wake_date)
@@ -233,6 +237,10 @@ class SleepService:
 
         db.commit()
         db.refresh(session)
+
+        # Reschedule inactivity reminder
+        from app.services.notification_job_generator import reschedule_inactivity_reminder
+        reschedule_inactivity_reminder(db, user_id)
 
         # 4. Trigger Cascade Aggregation Updates for both old and new wake dates
         new_wake_date = get_wake_date(session.end_time, session.timezone)

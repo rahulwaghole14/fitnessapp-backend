@@ -58,6 +58,14 @@ def log_activity(db: Session, user_id: Optional[int], username: str, activity_ty
     db.add(activity_log)
     db.commit()
     db.refresh(activity_log)
+
+    # Reschedule inactivity reminder if workout complete
+    if user_id and (activity_type == "workout_complete" or mapped_activity_type == "WORKOUT_COMPLETED"):
+        try:
+            from app.services.notification_job_generator import reschedule_inactivity_reminder
+            reschedule_inactivity_reminder(db, user_id)
+        except Exception as ex:
+            print(f"Failed to reschedule inactivity reminder: {ex}")
     
     # Send WebSocket notification if enabled and activity is admin-important
     if send_notification and notification_service.is_admin_important_activity(mapped_activity_type):

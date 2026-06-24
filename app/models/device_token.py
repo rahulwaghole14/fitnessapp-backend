@@ -13,6 +13,9 @@ class DeviceToken(Base):
     platform = Column(String(50), nullable=False)  # 'android', 'ios', 'web'
     device_name = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
+    failure_count = Column(Integer, default=0, nullable=False)
+    last_push_success = Column(DateTime(timezone=True), nullable=True)
+    last_push_failure = Column(DateTime(timezone=True), nullable=True)
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
