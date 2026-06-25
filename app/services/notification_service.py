@@ -299,8 +299,13 @@ class NotificationService:
         try:
             from app.services.push_service import push_service
             from app.models.notification_preference import NotificationPreference
+            from app.models.user import User
+            import os
+            import json
+            from datetime import timedelta
             
-            # Fetch user preferences
+            # Fetch user and preferences
+            user = db.query(User).filter(User.id == user_id).first()
             pref = db.query(NotificationPreference).filter(
                 NotificationPreference.user_id == user_id
             ).first()
@@ -335,26 +340,80 @@ class NotificationService:
                     "SUBSCRIPTION_PURCHASED"
                 }
                 
-                is_high_priority = notification_type in high_priority_types
+                # Check priority (Phase 5 Smart Push Routing)
+                priority_clean = priority.lower() if priority else "normal"
+                is_high_priority = priority_clean == "high" or notification_type in high_priority_types
                 is_ws_connected = len(websocket_manager.user_connections.get(user_id, [])) > 0
+                is_offline = not is_ws_connected
                 
-                # High priority is sent always. Low priority only when offline (WS disconnected)
-                if is_high_priority or not is_ws_connected:
+                # User activity awareness
+                threshold_minutes = int(os.getenv("PUSH_INACTIVITY_THRESHOLD_MINUTES", "20"))
+                inactivity_delta = timedelta(minutes=threshold_minutes)
+                now_utc = datetime.now(timezone.utc)
+                
+                is_inactive = True
+                if user and user.last_app_activity:
+                    last_act = user.last_app_activity
+                    if last_act.tzinfo is None:
+                        last_act = last_act.replace(tzinfo=timezone.utc)
+                    is_inactive = (now_utc - last_act) > inactivity_delta
+                
+                # Smart routing decisions
+                should_push = False
+                if is_high_priority:
+                    should_push = True
+                elif priority_clean == "normal":
+                    should_push = is_offline or is_inactive
+                elif priority_clean == "low":
+                    should_push = is_inactive
+                
+                if should_push:
+                    # Deep Link and Screen support (Phase 6)
+                    screen_map = {
+                        "MEAL_REMINDER_BREAKFAST": "meals",
+                        "MEAL_REMINDER_LUNCH": "meals",
+                        "MEAL_REMINDER_DINNER": "meals",
+                        "HYDRATION_REMINDER": "hydration",
+                        "SLEEP_ANALYSIS": "sleep",
+                        "SLEEP_GOAL_ACHIEVED": "sleep",
+                        "SLEEP_ACHIEVEMENT": "sleep",
+                        "SUBSCRIPTION_PURCHASED": "premium",
+                        "SUBSCRIPTION_EXPIRED": "premium",
+                        "SUBSCRIPTION_EXPIRING": "premium",
+                        "PAYMENT_FAILED": "premium"
+                    }
+                    
+                    screen = screen_map.get(notification_type)
+                    deep_link = f"fitnessapp://{screen}" if screen else None
+                    
+                    # Package structured FCM payload
+                    fcm_payload = {
+                        "notification_id": str(notification.id),
+                        "type": str(notification_type or ""),
+                        "deep_link": str(deep_link or ""),
+                        "screen": str(screen or ""),
+                        "metadata": json.dumps(metadata or {})
+                    }
+                    
+                    logger.info(f"[PUSH EVENT] notification_generated | notification_id={notification.id} | user_id={user_id} | type={notification_type}")
+                    
                     push_success = await push_service.send_to_user(
                         db=db,
                         user_id=user_id,
                         title=title,
                         body=message,
-                        metadata=metadata
+                        notification_id=notification.id,
+                        notification_type=notification_type,
+                        metadata=fcm_payload
                     )
                     if push_success:
                         notification.push_sent = True
                         notification.push_sent_at = datetime.now(timezone.utc)
                         notification.delivery_status = "SENT"
                         db.commit()
-                    logger.info(f"FCM push dispatched for user {user_id} (WS connected: {is_ws_connected})")
+                    logger.info(f"FCM push dispatched for user {user_id} (WS connected: {is_ws_connected}, Inactive: {is_inactive})")
                 else:
-                    logger.debug(f"Skipping FCM push for user {user_id} because WebSocket is active (Low Priority)")
+                    logger.debug(f"Skipping FCM push for user {user_id} based on Smart Routing (WS connected: {is_ws_connected}, Inactive: {is_inactive}, Priority: {priority_clean})")
             else:
                 logger.debug(f"Skipping FCM push for user {user_id} due to preferences (global={global_push}, category_enabled={category_enabled})")
         except Exception as e:

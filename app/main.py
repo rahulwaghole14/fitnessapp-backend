@@ -18,9 +18,11 @@ async def startup_event():
     from app.services.scheduler import start_scheduler
     from app.services.notification_worker import start_notification_worker
     from app.services.notification_job_generator import start_daily_job_generator
+    from app.services.push_retry_worker import start_push_retry_worker
     asyncio.create_task(start_scheduler())
     asyncio.create_task(start_notification_worker())
     asyncio.create_task(start_daily_job_generator())
+    asyncio.create_task(start_push_retry_worker())
 
 # Configure CORS for admin frontend
 app.add_middleware(

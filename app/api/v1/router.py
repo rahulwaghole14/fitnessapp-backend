@@ -21,7 +21,7 @@ from .sleep import (
 from .notifications import (
     get_user_notifications, get_user_unread_count,
     mark_user_notification_as_read, mark_all_user_notifications_as_read,
-    delete_user_notification
+    delete_user_notification, mark_push_delivered, mark_push_opened
 )
 from .device_tokens import register_device_token, unregister_device_token
 from .preferences import get_notification_preferences, update_notification_preferences
@@ -48,6 +48,8 @@ router.get("/notifications/unread-count", response_model=UnreadCountResponse)(ge
 router.put("/notifications/{id}/read", response_model=NotificationMarkReadResponse)(mark_user_notification_as_read)
 router.put("/notifications/mark-all-read", response_model=NotificationSuccessResponse)(mark_all_user_notifications_as_read)
 router.delete("/notifications/{id}", response_model=NotificationSuccessResponse)(delete_user_notification)
+router.post("/notifications/push-delivery/{push_message_id}/delivered", response_model=NotificationSuccessResponse)(mark_push_delivered)
+router.post("/notifications/push-delivery/{push_message_id}/opened", response_model=NotificationSuccessResponse)(mark_push_opened)
 
 # Device Token & Preference Endpoints
 router.post("/device-tokens/register", response_model=DeviceTokenResponse)(register_device_token)

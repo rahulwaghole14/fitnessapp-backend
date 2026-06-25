@@ -1,0 +1,2090 @@
+{
+  "info": {
+    "name": "Fitness App API",
+    "version": "0.1.0",
+    "description": "Fitness App API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Activity",
+          "item": [
+            {
+              "name": "Get Recent Activities",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/recent-activities?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/recent-activities"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Admin Change Password",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/auth/change-password",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"old_password\": \"password123\", \"new_password\": \"password123\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Admin Forgot Password Reset",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/auth/forgot-password/reset",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\", \"otp\": \"123456\", \"new_password\": \"password123\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Admin Forgot Password Send Otp",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/auth/forgot-password/send",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Admin Forgot Password Verify Otp",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/auth/forgot-password/verify",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\", \"otp\": \"123456\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Admin Profile",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/profile"
+              },
+              "response": []
+            },
+            {
+              "name": "Login Admin",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/login",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\", \"password\": \"password123\"}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/login"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Logout Admin",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/logout",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"refresh_token\": \"token_xyz\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Refresh Admin Access Token",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/refresh-token",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"refresh_token\": \"token_xyz\"}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/refresh-token"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Register Admin",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/register",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\", \"username\": \"john_doe\", \"password\": \"password123\"}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/register"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update Admin Profile",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/profile",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "BMI Classification",
+          "item": [
+            {
+              "name": "Create Bmi Classification",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/bmi-classifications",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"category_name\": {}, \"min_bmi\": 22.5, \"max_bmi\": 22.5}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/bmi-classifications"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Delete Bmi Classification",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/admin/bmi-classification/:bmi_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "url": "{{base_url}}/api/admin/bmi-classification/:bmi_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Bmi Classification By Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/bmi-classification/:bmi_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/bmi-classification/:bmi_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Bmi Classifications Paginated",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/bmi-classifications?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/bmi-classifications"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update Bmi Classification",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/update-bmi-classification/:bmi_id",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"category_name\": {}, \"min_bmi\": 22.5, \"max_bmi\": 22.5}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/update-bmi-classification/:bmi_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "Get All Users",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/dashboard/users"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/dashboard/users"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Get Overview",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/dashboard/overview"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/dashboard/overview"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Explore Activities",
+          "item": [
+            {
+              "name": "Create Explore Activity",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/explore-activities",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/explore-activities"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Delete Explore Activity",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/admin/explore-activities/:activity_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "url": "{{base_url}}/api/admin/explore-activities/:activity_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Explore Activities Paginated",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/explore-activities?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/explore-activities"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Explore Activity By Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/explore-activities/:activity_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/explore-activities/:activity_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update Explore Activity",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/explore-activities/:activity_id",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/explore-activities/:activity_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Meals",
+          "item": [
+            {
+              "name": "Create Meal",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/meals",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/meals"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Delete Meal",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/admin/meal/:meal_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "url": "{{base_url}}/api/admin/meal/:meal_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Meal By Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/meal/:meal_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/meal/:meal_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Meals Paginated",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/meals?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/meals"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update Meal",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/update-meal/:meal_id",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/update-meal/:meal_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Notifications",
+          "item": [
+            {
+              "name": "Get Activity Types",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/notifications/activity-types"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/notifications/activity-types"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Get Notification Stats",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/notifications/stats"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/notifications/stats"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Notifications",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/notifications?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/notifications"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Get Unread Notifications Count",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/notifications/unread-count"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/notifications/unread-count"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Mark All Notifications As Read",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/notifications/mark-all-read?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/notifications/mark-all-read"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Mark Notification As Read",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/notifications/:notification_id/mark-read"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/notifications/:notification_id/mark-read"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Plans",
+          "item": [
+            {
+              "name": "Create Plan",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/plans",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"name\": {}, \"description\": {}, \"price\": {}, \"duration_days\": {}, \"features\": {}, \"is_active\": true}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/plans"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Delete Plan",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/admin/delete-plan/:plan_id"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Plan By Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/plan/:plan_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/plan/:plan_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Plans",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/plans"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/plans"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Update Plan",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/update-plan/:plan_id",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"name\": {}, \"description\": {}, \"price\": {}, \"duration_days\": {}, \"features\": {}, \"is_active\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/update-plan/:plan_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Quotes",
+          "item": [
+            {
+              "name": "Create New Quote",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/quotes",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"text\": {}, \"author\": {}, \"category\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/quotes"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "List All Quotes For Admin",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/quotes?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/quotes"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Modify Existing Quote",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/quotes/:quote_id",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"text\": {}, \"author\": {}, \"category\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/quotes/:quote_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Remove Quote",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/admin/quotes/:quote_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "url": "{{base_url}}/api/admin/quotes/:quote_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Subscriptions",
+          "item": [
+            {
+              "name": "Get User Subscription By Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/user-subscription/:subscription_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/user-subscription/:subscription_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get User Subscriptions Paginated",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/user-subscriptions?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/user-subscriptions"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update User Subscription",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/update-user-subscription/:subscription_id",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"status\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/update-user-subscription/:subscription_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Users",
+          "item": [
+            {
+              "name": "Delete User",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/admin/user/:user_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "url": "{{base_url}}/api/admin/user/:user_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get User By Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/user/:user_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/user/:user_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Users Paginated",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/users?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/users"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Register User",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/register-user",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"username\": \"john_doe\", \"email\": \"user@example.com\", \"password\": \"password123\"}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/register-user"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update User",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/update-user/:user_id",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/update-user/:user_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Workouts",
+          "item": [
+            {
+              "name": "Create Workout",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/admin/workouts",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/admin/workouts"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Delete Workout",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/admin/workout/:workout_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "url": "{{base_url}}/api/admin/workout/:workout_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Workout By Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/workout/:workout_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/workout/:workout_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Workouts Paginated",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/admin/workouts?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/admin/workouts"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update Workout",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/admin/update-workout/:workout_id",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/admin/update-workout/:workout_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "General",
+      "item": [
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "v1",
+      "item": [
+        {
+          "name": "Activity",
+          "item": [
+            {
+              "name": "Get User Daily Activities",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/activity/daily"
+              },
+              "response": []
+            },
+            {
+              "name": "Get User Monthly Activities",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/activity/monthly"
+              },
+              "response": []
+            },
+            {
+              "name": "Get User Yearly Activities",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/activity/yearly"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Weekly Analytics",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/activity/weekly?year=&month="
+              },
+              "response": []
+            },
+            {
+              "name": "Store Daily Activity",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/activity/daily",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"activity_date\": {}, \"steps\": {}, \"distance_km\": {}, \"calories\": {}, \"active_minutes\": {}}"
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Change Password",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/v1/change-password",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"old_password\": \"password123\", \"new_password\": \"password123\", \"confirm_password\": \"password123\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Forgot Password Reset Password",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/forgot-password/reset-password",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\", \"otp\": \"123456\", \"new_password\": \"password123\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Forgot Password Send Otp",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/forgot-password/send-otp",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Forgot Password Verify Otp",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/forgot-password/verify-otp",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\", \"otp\": \"123456\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Profile",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/profile"
+              },
+              "response": []
+            },
+            {
+              "name": "Get User Profile",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/users/profile"
+              },
+              "response": []
+            },
+            {
+              "name": "Login",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/login",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\", \"password\": \"password123\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/auth/logout",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"refresh_token\": \"token_xyz\"}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/v1/auth/logout"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Logout All",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/auth/logout-all"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/v1/auth/logout-all"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Refresh Token",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/auth/refresh",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"refresh_token\": \"token_xyz\"}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/v1/auth/refresh"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/register",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"username\": \"john_doe\", \"email\": \"user@example.com\", \"password\": \"password123\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Resend Otp",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/resend-otp",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"email\": \"user@example.com\"}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Profile",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/v1/setup-profile",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"gender\": \"male\", \"age\": 25, \"height\": 175.0, \"weight\": 70.0, \"bmi\": 22.5, \"weight_goal\": 70.0, \"activity_level\": {}, \"timezone\": \"Asia/Kolkata\", \"sleep_goal\": 480}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Upload Profile Image",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/v1/users/profile-image",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": []
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Meals",
+          "item": [
+            {
+              "name": "Get Meals By User Bmi",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/meals"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/meals"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Notifications",
+          "item": [
+            {
+              "name": "Delete User Notification",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/v1/notifications/:id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "url": "{{base_url}}/api/v1/notifications/:id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Notification Preferences",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/notifications/preferences"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/notifications/preferences"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get User Notifications",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/notifications?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/notifications"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get User Unread Count",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/notifications/unread-count"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/notifications/unread-count"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Mark All User Notifications As Read",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/v1/notifications/mark-all-read"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/v1/notifications/mark-all-read"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Mark User Notification As Read",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/v1/notifications/:id/read"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/v1/notifications/:id/read"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Register Device Token",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/device-tokens/register",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"device_token\": \"token_xyz\", \"platform\": {}, \"device_name\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/v1/device-tokens/register"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Unregister Device Token",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/device-tokens/unregister",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"device_token\": \"token_xyz\"}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/v1/device-tokens/unregister"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update Notification Preferences",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/v1/notifications/preferences",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"push_notifications\": {}, \"meal_reminders\": {}, \"hydration_reminders\": {}, \"sleep_notifications\": {}, \"subscription_notifications\": {}, \"engagement_notifications\": 25}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/v1/notifications/preferences"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Quotes",
+          "item": [
+            {
+              "name": "Get Random Quote",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/quotes/random"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/quotes/random"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Sleep",
+          "item": [
+            {
+              "name": "Create Session",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/sleep/session",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"id\": {}, \"startTime\": {}, \"endTime\": {}, \"isNap\": false, \"timezone\": \"UTC\", \"source\": \"manual\", \"stages\": 25, \"deepSleepMinutes\": 0, \"lightSleepMinutes\": 0, \"remSleepMinutes\": 0, \"awakeMinutes\": 0, \"durationMinutes\": {}, \"qualityScore\": {}, \"synced\": {}, \"updatedAt\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 201",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/v1/sleep/session"
+                  },
+                  "status": "OK",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Delete Session",
+              "request": {
+                "method": "DELETE",
+                "url": "{{base_url}}/api/v1/sleep/session/:id"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Analytics",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/sleep/analytics"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/sleep/analytics"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Daily",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/sleep/daily?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/sleep/daily"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get History",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/sleep/history?"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/sleep/history"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Monthly",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/sleep/monthly?year=&month="
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/sleep/monthly"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Session",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/sleep/session/:id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/sleep/session/:id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get Yearly",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/sleep/yearly?year="
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/sleep/yearly"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Update Session",
+              "request": {
+                "method": "PUT",
+                "url": "{{base_url}}/api/v1/sleep/session/:id",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"startTime\": {}, \"endTime\": {}, \"isNap\": {}, \"timezone\": {}, \"source\": {}, \"stages\": 25, \"deepSleepMinutes\": {}, \"lightSleepMinutes\": {}, \"remSleepMinutes\": {}, \"awakeMinutes\": {}, \"durationMinutes\": {}, \"qualityScore\": {}, \"synced\": {}, \"updatedAt\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "PUT",
+                    "url": "{{base_url}}/api/v1/sleep/session/:id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Subscription",
+          "item": [
+            {
+              "name": "Create Subscription Order",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/subscriptions/order",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"plan_id\": {}}"
+                }
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "POST",
+                    "url": "{{base_url}}/api/v1/subscriptions/order"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get All Plans",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/subscription-plans"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/subscription-plans"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Get Payment History",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/subscriptions/payment-history"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/subscriptions/payment-history"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Get Plan Id",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/subscription-plans/:plan_id"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/subscription-plans/:plan_id"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{}"
+                }
+              ]
+            },
+            {
+              "name": "Get User Subscription",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/subscriptions/user-subscription"
+              },
+              "response": [
+                {
+                  "name": "Response 200",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "{{base_url}}/api/v1/subscriptions/user-subscription"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "[{}]"
+                }
+              ]
+            },
+            {
+              "name": "Handle Razorpay Webhook",
+              "request": {
+                "method": "POST",
+                "url": "{{base_url}}/api/v1/subscriptions/payment"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Workouts",
+          "item": [
+            {
+              "name": "Get Workouts For User",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/workouts"
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "pm.environment.set(\"current_timestamp\", new Date().toISOString());"
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "pm.test(\"Status code is successful\", function () { pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]); });",
+          "pm.test(\"Response time under 5 seconds\", function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ]
+}

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import logging
 
 from app.core.database import get_db
 from app.core.auth_dependencies import get_current_user_id
@@ -15,6 +16,8 @@ from app.schemas.notification import (
     NotificationSuccessResponse
 )
 from app.core.websocket_manager import websocket_manager
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_notifications(
@@ -271,4 +274,88 @@ async def delete_user_notification(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete notification: {str(e)}"
+        )
+
+
+def mark_push_delivered(
+    push_message_id: str,
+    db: Session = Depends(get_db)
+) -> NotificationSuccessResponse:
+    """
+    Mark a push notification as delivered (Phase 2 & 8).
+    """
+    from app.models.push_delivery_log import PushDeliveryLog
+    from datetime import datetime, timezone
+
+    try:
+        log_entry = db.query(PushDeliveryLog).filter(
+            PushDeliveryLog.push_message_id == push_message_id
+        ).first()
+
+        if not log_entry:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Push delivery log not found for the given message ID"
+            )
+
+        log_entry.status = "DELIVERED"
+        log_entry.delivered_at = datetime.now(timezone.utc)
+        db.commit()
+        
+        logger.info(f"[PUSH EVENT] delivery_completed | notification_id={log_entry.notification_id} | user_id={log_entry.user_id} | token_id={log_entry.device_token_id} | type={log_entry.notification_type}")
+
+        return NotificationSuccessResponse(
+            message="Push delivery status updated to DELIVERED",
+            success=True
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update push delivery status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update push delivery status: {str(e)}"
+        )
+
+
+def mark_push_opened(
+    push_message_id: str,
+    db: Session = Depends(get_db)
+) -> NotificationSuccessResponse:
+    """
+    Mark a push notification as opened by the user (Phase 2, 8 & 9).
+    """
+    from app.models.push_delivery_log import PushDeliveryLog
+    from datetime import datetime, timezone
+
+    try:
+        log_entry = db.query(PushDeliveryLog).filter(
+            PushDeliveryLog.push_message_id == push_message_id
+        ).first()
+
+        if not log_entry:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Push delivery log not found for the given message ID"
+            )
+
+        log_entry.status = "OPENED"
+        log_entry.opened_at = datetime.now(timezone.utc)
+        db.commit()
+
+        logger.info(f"[PUSH EVENT] push_opened | notification_id={log_entry.notification_id} | user_id={log_entry.user_id} | token_id={log_entry.device_token_id} | type={log_entry.notification_type}")
+
+        return NotificationSuccessResponse(
+            message="Push delivery status updated to OPENED",
+            success=True
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update push opened status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update push opened status: {str(e)}"
         )

@@ -24,6 +24,8 @@ class User(Base):
     profile_image = Column(String, nullable=True)
     timezone = Column(String(100), default="Asia/Kolkata", nullable=False)
     sleep_goal = Column(Integer, default=480, nullable=False)
+    last_websocket_seen = Column(DateTime(timezone=True), nullable=True)
+    last_app_activity = Column(DateTime(timezone=True), nullable=True)
 
     # Relationship with DailyActivity
     daily_activities = relationship("DailyActivity", back_populates="user")

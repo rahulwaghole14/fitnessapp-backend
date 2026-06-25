@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.jwt_utils import decode_access_token
@@ -26,6 +27,9 @@ def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found"
             )
+        
+        user.last_app_activity = datetime.now(timezone.utc)
+        db.commit()
         return user
     except Exception:
         raise HTTPException(
@@ -51,6 +55,9 @@ def get_current_user_id(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found"
             )
+        
+        user_exists.last_app_activity = datetime.now(timezone.utc)
+        db.commit()
         return user_id
     except Exception:
         raise HTTPException(
@@ -84,7 +91,9 @@ def get_current_user_with_session_update(
         
         if most_recent_token:
             most_recent_token.update_last_used()
-            db.commit()
+        
+        user.last_app_activity = datetime.now(timezone.utc)
+        db.commit()
         
         return user
     except Exception:

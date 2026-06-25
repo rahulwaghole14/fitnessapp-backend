@@ -56,6 +56,22 @@ class WebSocketManager:
             self.user_connections[user_id] = []
         self.user_connections[user_id].append(connection_id)
         
+        # Update last_websocket_seen (Phase 5)
+        try:
+            from app.core.database import SessionLocal
+            from app.models.user import User
+            from datetime import datetime, timezone
+            db = SessionLocal()
+            try:
+                user = db.query(User).filter(User.id == user_id).first()
+                if user:
+                    user.last_websocket_seen = datetime.now(timezone.utc)
+                    db.commit()
+            finally:
+                db.close()
+        except Exception as db_err:
+            logger.error(f"Failed to update last_websocket_seen for user {user_id}: {db_err}")
+
         logger.info(f"User {user_id} WebSocket connection established: {connection_id}")
         return connection_id
 

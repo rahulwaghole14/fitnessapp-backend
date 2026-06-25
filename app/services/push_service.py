@@ -1,11 +1,17 @@
 import logging
+import json
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from firebase_admin import messaging
-from datetime import datetime, timezone
+from firebase_admin.exceptions import InvalidArgumentError
+from firebase_admin.messaging import SenderIdMismatchError
+import firebase_admin
+from datetime import datetime, timezone, timedelta
 
 from app.core.firebase import initialize_firebase
 from app.models.device_token import DeviceToken
+from app.models.push_delivery_log import PushDeliveryLog
+from app.models.push_retry_queue import PushRetryQueue
 
 logger = logging.getLogger(__name__)
 
@@ -16,17 +22,27 @@ initialize_firebase()
 class PushNotificationService:
     @staticmethod
     async def send_push_notification(
+        db: Session,
+        user_id: int,
+        device_token_id: int,
         device_token: str,
         title: str,
         body: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        notification_id: Optional[int] = None,
+        notification_type: Optional[str] = None,
+        platform: Optional[str] = None
     ) -> str:
         """
         Sends a single push notification to a device token using Firebase Cloud Messaging (FCM).
+        Records the attempt to push_delivery_logs.
         Returns:
             "SUCCESS": If sent successfully.
-            "UNREGISTERED": If the token is unregistered/invalid (e.g. UnregisteredError).
+            "UNREGISTERED": If the token is unregistered.
+            "SENDER_ID_MISMATCH": If the token belongs to a different sender ID.
+            "INVALID_ARGUMENT": If the token or payload is invalid.
             "TRANSIENT_FAILURE": If transient delivery/network error.
+            "FIREBASE_NOT_INITIALIZED": If Firebase was not configured/initialized.
         """
         # Ensure metadata values are in string format for FCM data payload
         fcm_data = {}
@@ -43,15 +59,71 @@ class PushNotificationService:
             token=device_token
         )
 
+        # Create pending delivery log (Phase 2 & Phase 8 tracking)
+        log_record = PushDeliveryLog(
+            notification_id=notification_id,
+            user_id=user_id,
+            device_token_id=device_token_id,
+            push_provider="FCM",
+            status="PENDING",
+            notification_type=notification_type,
+            platform=platform,
+            created_at=datetime.utcnow()
+        )
+        db.add(log_record)
+        try:
+            db.commit()
+            db.refresh(log_record)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to create pending push delivery log: {e}")
+
+        # Check if Firebase is configured/initialized to prevent cascade deactivations on missing credentials
+        if not firebase_admin._apps:
+            logger.error("Firebase Admin SDK is not initialized. Suppressing push and token invalidation.")
+            if log_record.id:
+                log_record.status = "FAILED"
+                log_record.error_message = "Firebase SDK not initialized"
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            return "FIREBASE_NOT_INITIALIZED"
+
+        log_record.sent_at = datetime.utcnow()
+
         try:
             response = messaging.send(message)
-            logger.info(f"FCM push sent successfully. Response: {response}")
+            logger.info(f"[PUSH EVENT] push_sent | notification_id={notification_id} | user_id={user_id} | token_id={device_token_id} | type={notification_type}")
+            
+            # Update log (Phase 2 & Phase 8)
+            log_record.status = "SENT"
+            log_record.push_message_id = response
+            db.commit()
             return "SUCCESS"
         except messaging.UnregisteredError as ue:
-            logger.warning(f"FCM token unregistered/invalid. Token: {device_token[:15]}... | Error: {ue}")
+            logger.warning(f"[PUSH EVENT] token_deactivated | reason=unregistered | notification_id={notification_id} | user_id={user_id} | token_id={device_token_id} | Error: {ue}")
+            log_record.status = "FAILED"
+            log_record.error_message = f"UnregisteredError: {ue}"
+            db.commit()
             return "UNREGISTERED"
+        except SenderIdMismatchError as se:
+            logger.warning(f"[PUSH EVENT] token_deactivated | reason=sender_id_mismatch | notification_id={notification_id} | user_id={user_id} | token_id={device_token_id} | Error: {se}")
+            log_record.status = "FAILED"
+            log_record.error_message = f"SenderIdMismatchError: {se}"
+            db.commit()
+            return "SENDER_ID_MISMATCH"
+        except InvalidArgumentError as ie:
+            logger.warning(f"[PUSH EVENT] token_deactivated | reason=invalid_argument | notification_id={notification_id} | user_id={user_id} | token_id={device_token_id} | Error: {ie}")
+            log_record.status = "FAILED"
+            log_record.error_message = f"InvalidArgumentError: {ie}"
+            db.commit()
+            return "INVALID_ARGUMENT"
         except Exception as e:
-            logger.error(f"FCM push delivery failed for token {device_token[:15]}...: {e}")
+            logger.error(f"[PUSH EVENT] push_failed | reason=transient | notification_id={notification_id} | user_id={user_id} | token_id={device_token_id} | Error: {e}")
+            log_record.status = "FAILED"
+            log_record.error_message = str(e)
+            db.commit()
             return "TRANSIENT_FAILURE"
 
     @staticmethod
@@ -60,6 +132,8 @@ class PushNotificationService:
         user_id: int,
         title: str,
         body: str,
+        notification_id: int,
+        notification_type: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
@@ -81,27 +155,54 @@ class PushNotificationService:
         
         for token_record in active_tokens:
             status = await PushNotificationService.send_push_notification(
+                db=db,
+                user_id=user_id,
+                device_token_id=token_record.id,
                 device_token=token_record.device_token,
                 title=title,
                 body=body,
-                metadata=metadata
+                metadata=metadata,
+                notification_id=notification_id,
+                notification_type=notification_type,
+                platform=token_record.platform
             )
             
             if status == "SUCCESS":
                 token_record.last_push_success = now_utc
                 token_record.failure_count = 0
                 any_success = True
-            elif status == "UNREGISTERED":
+            elif status in ("UNREGISTERED", "SENDER_ID_MISMATCH", "INVALID_ARGUMENT"):
                 token_record.last_push_failure = now_utc
                 token_record.failure_count += 1
                 token_record.is_active = False
-                logger.info(f"FCM token {token_record.device_token[:15]}... unregistered, marked inactive.")
+                logger.info(f"FCM token {token_record.device_token[:15]}... unregistered/invalid ({status}), marked inactive.")
+            elif status == "FIREBASE_NOT_INITIALIZED":
+                # Suppress token health updates if Firebase SDK is not configured
+                logger.warning(f"Skipping token tracking update for {token_record.device_token[:15]}... because Firebase is not initialized.")
             else:  # TRANSIENT_FAILURE
                 token_record.last_push_failure = now_utc
                 token_record.failure_count += 1
+                
+                # Check threshold for token deactivation
                 if token_record.failure_count >= 3:
                     token_record.is_active = False
                     logger.info(f"FCM token {token_record.device_token[:15]}... failed {token_record.failure_count} times, marked inactive.")
+                
+                # Queue for retry (Phase 4)
+                try:
+                    retry_job = PushRetryQueue(
+                        notification_id=notification_id,
+                        device_token_id=token_record.id,
+                        retry_count=0,
+                        next_retry_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+                        status="PENDING"
+                    )
+                    db.add(retry_job)
+                    db.commit()
+                    logger.info(f"[PUSH EVENT] push_queued | notification_id={notification_id} | user_id={user_id} | token_id={token_record.id} | type={notification_type}")
+                except Exception as re:
+                    db.rollback()
+                    logger.error(f"Failed to queue push retry job: {re}")
 
         try:
             db.commit()
@@ -117,6 +218,8 @@ class PushNotificationService:
         device_tokens: List[str],
         title: str,
         body: str,
+        notification_id: int,
+        notification_type: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ):
         """
@@ -144,6 +247,11 @@ class PushNotificationService:
 
         now_utc = datetime.now(timezone.utc)
 
+        # Check if Firebase is initialized
+        if not firebase_admin._apps:
+            logger.error("Firebase Admin SDK is not initialized. Suppressing multicast push.")
+            return
+
         try:
             batch_response = messaging.send_multicast(message)
             logger.info(f"FCM multicast batch sent. Successes: {batch_response.success_count}, Failures: {batch_response.failure_count}")
@@ -157,18 +265,52 @@ class PushNotificationService:
                     
                     if not token_record:
                         continue
-                        
+
+                    # Create pending delivery log
+                    log_record = PushDeliveryLog(
+                        notification_id=notification_id,
+                        user_id=token_record.user_id,
+                        device_token_id=token_record.id,
+                        push_provider="FCM",
+                        status="PENDING",
+                        notification_type=notification_type,
+                        platform=token_record.platform,
+                        created_at=datetime.utcnow(),
+                        sent_at=datetime.utcnow()
+                    )
+                    db.add(log_record)
+                    
                     if resp.success:
                         token_record.last_push_success = now_utc
                         token_record.failure_count = 0
+                        log_record.status = "SENT"
+                        log_record.push_message_id = resp.message_id
                     else:
                         token_record.last_push_failure = now_utc
                         token_record.failure_count += 1
                         exception = resp.exception
                         
-                        if isinstance(exception, messaging.UnregisteredError) or token_record.failure_count >= 3:
+                        log_record.status = "FAILED"
+                        log_record.error_message = str(exception)
+                        
+                        is_invalid_err = isinstance(exception, (messaging.UnregisteredError, SenderIdMismatchError, InvalidArgumentError))
+                        if is_invalid_err or token_record.failure_count >= 3:
                             token_record.is_active = False
                             logger.info(f"Multicast FCM token {token[:15]}... invalid or failed too many times, marked inactive.")
+                        else:
+                            # Queue transient failure for retry
+                            try:
+                                retry_job = PushRetryQueue(
+                                    notification_id=notification_id,
+                                    device_token_id=token_record.id,
+                                    retry_count=0,
+                                    next_retry_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+                                    status="PENDING"
+                                )
+                                db.add(retry_job)
+                                logger.info(f"[PUSH EVENT] push_queued | notification_id={notification_id} | user_id={token_record.user_id} | token_id={token_record.id} | type={notification_type}")
+                            except Exception as re:
+                                logger.error(f"Failed to queue push retry job in multicast: {re}")
                 
                 try:
                     db.commit()

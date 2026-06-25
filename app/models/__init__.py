@@ -10,6 +10,8 @@ from .device_token import DeviceToken
 from .notification_preference import NotificationPreference
 from .refresh_token import RefreshToken
 from .scheduled_job import ScheduledNotificationJob
+from .push_delivery_log import PushDeliveryLog
+from .push_retry_queue import PushRetryQueue
 
 __all__ = [
     "User",
@@ -26,5 +28,7 @@ __all__ = [
     "DeviceToken",
     "NotificationPreference",
     "RefreshToken",
-    "ScheduledNotificationJob"
+    "ScheduledNotificationJob",
+    "PushDeliveryLog",
+    "PushRetryQueue"
 ]
