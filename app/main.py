@@ -26,30 +26,30 @@ async def startup_event():
 
 # Configure CORS based on environment
 import os
-APP_ENV = os.getenv("APP_ENV", "development")
 
-if APP_ENV == "production":
-    allowed_origins = [
-        # Approved frontend/admin domains in production
-        "https://fitness-app-dashboard-eight.vercel.app"
-    ]
-else:
-    allowed_origins = [
-        "http://localhost:3000",   # React Admin Dev
-        "http://localhost:5173",   # Alternate Vite Dev
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ]
+# Always allow default development and production dashboard origins
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "https://fitness-app-dashboard-eight.vercel.app",
+]
 
-allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-allowed_headers = ["Authorization", "Content-Type", "Accept"]
+# Allow adding additional origins dynamically via environment variable
+extra_origins = os.getenv("ALLOWED_ORIGINS")
+if extra_origins:
+    for origin in extra_origins.split(","):
+        stripped = origin.strip()
+        if stripped and stripped not in allowed_origins:
+            allowed_origins.append(stripped)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=allowed_methods,
-    allow_headers=allowed_headers,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Mount static files for media directory
