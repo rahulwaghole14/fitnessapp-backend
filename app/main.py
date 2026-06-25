@@ -31,7 +31,7 @@ APP_ENV = os.getenv("APP_ENV", "development")
 if APP_ENV == "production":
     allowed_origins = [
         # Approved frontend/admin domains in production
-        os.getenv("ALLOWED_ORIGINS", "https://fitness-app-dashboard-eight.vercel.app")
+        "https://fitness-app-dashboard-eight.vercel.app"
     ]
 else:
     allowed_origins = [
