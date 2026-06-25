@@ -40,6 +40,13 @@ from app.schemas.sleep import (
     UserMonthlySleepResponse, UserYearlySleepResponse, SleepAnalyticsResponse
 )
 
+from app.schemas.feedback import StandardResponse, FeedbackResponse
+from .feedbacks import (
+    submit_feedback,
+    get_my_feedback_history,
+    get_feedback_details
+)
+
 router = APIRouter()
 
 # Notification Endpoints
@@ -114,5 +121,11 @@ router.get("/sleep/daily", response_model=UserDailySleepResponse)(get_daily)
 router.get("/sleep/monthly", response_model=UserMonthlySleepResponse)(get_monthly)
 router.get("/sleep/yearly", response_model=UserYearlySleepResponse)(get_yearly)
 router.get("/sleep/analytics", response_model=SleepAnalyticsResponse)(get_analytics)
+
+# Feedback Endpoints
+router.post("/feedback", response_model=StandardResponse, status_code=201)(submit_feedback)
+router.get("/feedback/my-feedback", response_model=list[FeedbackResponse])(get_my_feedback_history)
+router.get("/feedback/{feedbackId}", response_model=FeedbackResponse)(get_feedback_details)
+
 
 

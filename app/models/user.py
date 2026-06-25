@@ -13,6 +13,8 @@ class User(Base):
     password = Column(String, nullable=False)
     otp = Column(String, nullable=True)
     otp_created_at = Column(DateTime, nullable=True)  # Track OTP creation time for expiration
+    otp_attempts = Column(Integer, default=0, nullable=False)
+    otp_locked_until = Column(DateTime, nullable=True)
     is_verified = Column(Boolean, default=False)
     gender = Column(String, nullable=True)
     age = Column(Integer, nullable=True)

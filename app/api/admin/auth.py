@@ -1,13 +1,13 @@
 from fastapi import HTTPException, status, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+import logging
 from typing import Optional
 import os
 from dotenv import load_dotenv
 import bcrypt
 from jose import jwt, JWTError
 import hashlib
-import random
 
 from app.models.admin import Admin, AdminRefreshToken
 from app.core.database import get_db
@@ -23,11 +23,16 @@ class AdminProfileUpdateSchema(BaseModel):
 
 from .schemas import AdminProfileUpdateSchema
 from app.utils.emailjs_utils import send_otp_email
+from app.utils.otp_utils import (
+    generate_otp, check_otp_lock, handle_failed_otp_attempt, handle_successful_otp_verification
+)
 from .dependencies import get_current_admin
 from app.services.image_service import AdminImageService
 
 # Load environment variables
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # JWT Configuration
 ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY")
@@ -43,9 +48,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a plain password against a hashed password using bcrypt.
     """
-    # Truncate password to 72 bytes (bcrypt limit)
-    password_bytes = plain_password.encode('utf-8')[:72]
-    return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
+    try:
+        # Truncate password to 72 bytes (bcrypt limit)
+        password_bytes = plain_password.encode('utf-8')[:72]
+        return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
+    except Exception as e:
+        logger.error(f"Admin password verification failed: {e}")
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -298,15 +307,16 @@ async def admin_forgot_password_send_otp(
             detail="Email not found. Please check your email."
         )
 
+    # Check lock state
+    check_otp_lock(admin)
+
     # Generate new OTP for password reset
-    new_otp = str(random.randint(100000, 999999))
+    new_otp = generate_otp()
 
     # Update admin record with new OTP and fresh timestamp
     admin.otp = new_otp
     admin.otp_created_at = datetime.utcnow()  # Reset expiration timer for password reset
     db.commit()
-
-    print(f"Admin Forgot Password OTP for {admin.email}: {new_otp}")
 
     # Define admin-specific message
     admin_message = """A password reset request has been initiated for your Fitness App Admin Panel account.
@@ -334,7 +344,18 @@ async def admin_forgot_password_verify_otp(
     """
     admin = db.query(Admin).filter(Admin.email == admin_data.email).first()
 
-    if not admin or admin.otp != admin_data.otp:
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP"
+        )
+
+    # Check lock state
+    check_otp_lock(admin)
+
+    # Check if OTP matches
+    if admin.otp != admin_data.otp:
+        handle_failed_otp_attempt(db, admin)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid OTP"
@@ -344,12 +365,15 @@ async def admin_forgot_password_verify_otp(
     if admin.otp_created_at:
         time_elapsed = datetime.utcnow() - admin.otp_created_at
         if time_elapsed.total_seconds() > 300:  # OTP expires after 300 seconds
+            handle_failed_otp_attempt(db, admin)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="OTP expired. Please request a new OTP."
             )
 
-    # OTP is valid - allow password reset
+    # OTP is valid - reset attempts and lock (keep OTP for the final reset step)
+    handle_successful_otp_verification(db, admin, clear_otp=False)
+
     return {"message": "OTP verified successfully. You can now reset your password."}
 
 
@@ -363,7 +387,18 @@ async def admin_forgot_password_reset(
     """
     admin = db.query(Admin).filter(Admin.email == admin_data.email).first()
 
-    if not admin or admin.otp != admin_data.otp:
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP"
+        )
+
+    # Check lock state
+    check_otp_lock(admin)
+
+    # Check if OTP matches
+    if admin.otp != admin_data.otp:
+        handle_failed_otp_attempt(db, admin)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid OTP"
@@ -373,6 +408,7 @@ async def admin_forgot_password_reset(
     if admin.otp_created_at:
         time_elapsed = datetime.utcnow() - admin.otp_created_at
         if time_elapsed.total_seconds() > 300:  # OTP expires after 300 seconds
+            handle_failed_otp_attempt(db, admin)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="OTP expired. Please request a new OTP."
@@ -387,11 +423,8 @@ async def admin_forgot_password_reset(
         AdminRefreshToken.is_revoked == False
     ).update({"is_revoked": True})
 
-    # Clear OTP and timestamp after successful password reset
-    admin.otp = None
-    admin.otp_created_at = None
-
-    db.commit()
+    # Clear OTP and reset lock/attempts on successful verification and password reset
+    handle_successful_otp_verification(db, admin, clear_otp=True)
 
     return {"message": "Password reset successfully. All sessions have been logged out. Please login again."}
 

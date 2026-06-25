@@ -12,6 +12,8 @@ from .refresh_token import RefreshToken
 from .scheduled_job import ScheduledNotificationJob
 from .push_delivery_log import PushDeliveryLog
 from .push_retry_queue import PushRetryQueue
+from .feedback import Feedback, FeedbackCategory, FeedbackStatus
+from .admin import Admin, AdminRefreshToken
 
 __all__ = [
     "User",
@@ -30,5 +32,10 @@ __all__ = [
     "RefreshToken",
     "ScheduledNotificationJob",
     "PushDeliveryLog",
-    "PushRetryQueue"
+    "PushRetryQueue",
+    "Feedback",
+    "FeedbackCategory",
+    "FeedbackStatus",
+    "Admin",
+    "AdminRefreshToken"
 ]

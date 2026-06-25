@@ -24,19 +24,32 @@ async def startup_event():
     asyncio.create_task(start_daily_job_generator())
     asyncio.create_task(start_push_retry_worker())
 
-# Configure CORS for admin frontend
+# Configure CORS based on environment
+import os
+APP_ENV = os.getenv("APP_ENV", "development")
+
+if APP_ENV == "production":
+    allowed_origins = [
+        # Approved frontend/admin domains in production
+        os.getenv("ALLOWED_ORIGINS", "https://fitness-app-dashboard-eight.vercel.app")
+    ]
+else:
+    allowed_origins = [
+        "http://localhost:3000",   # React Admin Dev
+        "http://localhost:5173",   # Alternate Vite Dev
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+
+allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+allowed_headers = ["Authorization", "Content-Type", "Accept"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # React Admin Dev
-        
-        # Add your production admin domain here
-        "https://fitness-app-dashboard-eight.vercel.app"
-        # "https://admin.yourdomain.com"
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allow_headers=["*"],
+    allow_methods=allowed_methods,
+    allow_headers=allowed_headers,
 )
 
 # Mount static files for media directory

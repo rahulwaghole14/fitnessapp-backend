@@ -1,10 +1,9 @@
 from fastapi import Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-import random
+import logging
 from typing import Optional
 import bcrypt
-
 
 from app.core.database import get_db
 from app.models.user import User
@@ -19,8 +18,13 @@ from app.schemas.auth import (
 
 from app.utils.emailjs_utils import send_otp_email
 from app.utils.activity_logger import log_activity
+from app.utils.otp_utils import (
+    generate_otp, check_otp_lock, handle_failed_otp_attempt, handle_successful_otp_verification
+)
 
 from app.services.image_service import ImageService
+
+logger = logging.getLogger(__name__)
 
 image_service = ImageService()
 
@@ -39,9 +43,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         password_bytes = plain_password.encode('utf-8')[:72]
         hashed_bytes = hashed_password.encode('utf-8')
         return bcrypt.checkpw(password_bytes, hashed_bytes)
-    except:
-        # Fallback to plain text comparison for backward compatibility
-        return plain_password == hashed_password
+    except Exception as e:
+        logger.error(f"Password verification failed: {e}")
+        return False
 
 
 # RESEND OTP
@@ -52,8 +56,11 @@ def resend_otp(data: ResendOTPSchema, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Email not found. Please register first.")
 
+    # Check lock state
+    check_otp_lock(user)
+
     # Generate new OTP
-    new_otp = str(random.randint(100000, 999999))
+    new_otp = generate_otp()
 
     # Update existing user record with new OTP and fresh timestamp
     user.otp = new_otp
@@ -141,17 +148,20 @@ def register(user: RegisterSchema, db: Session = Depends(get_db)):
 # FORGOT PASSWORD - SEND OTP
 def forgot_password_send_otp(user: ForgotPasswordEmailSchema, db: Session = Depends(get_db)):
 
-    user = db.query(User).filter(User.email == user.email).first()
+    db_user = db.query(User).filter(User.email == user.email).first()
 
-    if not user:
+    if not db_user:
         raise HTTPException(status_code=404, detail="Email not found. Please check your email or register.")
 
+    # Check lock state
+    check_otp_lock(db_user)
+
     # Generate new OTP for password reset
-    new_otp = str(random.randint(100000, 999999))
+    new_otp = generate_otp()
 
     # Update existing user record with new OTP and fresh timestamp
-    user.otp = new_otp
-    user.otp_created_at = datetime.utcnow()  # Reset expiration timer for password reset
+    db_user.otp = new_otp
+    db_user.otp_created_at = datetime.utcnow()  # Reset expiration timer for password reset
     db.commit()
  
     # Define user-specific message
@@ -175,18 +185,30 @@ def forgot_password_verify_otp(data: ForgotPasswordVerifySchema, db: Session = D
 
     user = db.query(User).filter(User.email == data.email).first()
 
-    if not user or user.otp != data.otp:
+    if not user:
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
-    # Check OTP expiration (300 seconds validity) - reuse existing logic
+    # Check lock state
+    check_otp_lock(user)
+
+    # Check if OTP is correct
+    if user.otp != data.otp:
+        handle_failed_otp_attempt(db, user)
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    # Check OTP expiration (300 seconds validity)
     if user.otp_created_at:
         time_elapsed = datetime.utcnow() - user.otp_created_at
         if time_elapsed.total_seconds() > 300:  # OTP expires after 300 seconds
+            handle_failed_otp_attempt(db, user)
             raise HTTPException(
                 status_code=400,
                 detail="OTP expired. Please request a new OTP."
             )
-    # OTP is valid - allow password reset
+
+    # OTP is valid - reset attempts and lock, but keep the OTP for the next reset-password step
+    handle_successful_otp_verification(db, user, clear_otp=False)
+
     return {"message": "OTP verified successfully. You can now reset your password."}
 
 
@@ -195,13 +217,22 @@ def forgot_password_reset_password(data: ForgotPasswordResetSchema, db: Session 
 
     user = db.query(User).filter(User.email == data.email).first()
 
-    if not user or user.otp != data.otp:
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    # Check lock state
+    check_otp_lock(user)
+
+    # Check if OTP matches
+    if user.otp != data.otp:
+        handle_failed_otp_attempt(db, user)
         raise HTTPException(status_code=400, detail="Invalid OTP")
 
     # Re-check OTP expiration (300 seconds validity) for security
     if user.otp_created_at:
         time_elapsed = datetime.utcnow() - user.otp_created_at
         if time_elapsed.total_seconds() > 300:  # OTP expires after 300 seconds
+            handle_failed_otp_attempt(db, user)
             raise HTTPException(
                 status_code=400,
                 detail="OTP expired. Please request a new OTP."
@@ -215,11 +246,8 @@ def forgot_password_reset_password(data: ForgotPasswordResetSchema, db: Session 
         RefreshToken.is_revoked == False
     ).update({"is_revoked": True})
 
-    # Clear OTP and timestamp after successful password reset
-    user.otp = None
-    user.otp_created_at = None
-
-    db.commit()
+    # Clear OTP and reset lock/attempts on successful verification and password reset
+    handle_successful_otp_verification(db, user, clear_otp=True)
 
     return {"message": "Password reset successfully. All sessions have been logged out. Please login again."}
 

@@ -42,6 +42,11 @@ from .explore_activities import (
     update_explore_activity, delete_explore_activity
 )
 
+# Feedback imports
+from .schemas import FeedbackResponse, FeedbackAnalyticsSummary
+from .feedbacks import list_feedbacks, update_feedback_status, get_feedback_analytics
+
+
 
 admin_router = APIRouter()
 
@@ -135,4 +140,10 @@ admin_router.get("/explore-activities", response_model=dict)(get_explore_activit
 admin_router.get("/explore-activities/{activity_id}", response_model=ExploreActivityResponse)(get_explore_activity_by_id)
 admin_router.put("/explore-activities/{activity_id}", response_model=ExploreActivityResponse)(update_explore_activity)
 admin_router.delete("/explore-activities/{activity_id}", response_model=dict)(delete_explore_activity)
+
+# Feedback Management Routes
+admin_router.get("/feedback", response_model=dict)(list_feedbacks)
+admin_router.patch("/feedback/{feedbackId}", response_model=FeedbackResponse)(update_feedback_status)
+admin_router.get("/feedback/analytics", response_model=FeedbackAnalyticsSummary)(get_feedback_analytics)
+
 

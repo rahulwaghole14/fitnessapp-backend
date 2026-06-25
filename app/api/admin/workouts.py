@@ -28,7 +28,9 @@ async def create_workout(
         workout_type: str = Form(...),
         workout_image: Optional[UploadFile] = File(None),
         workout_video: Optional[UploadFile] = File(None),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        current_admin: Admin = Depends(get_current_admin)
+
 ):
 
     # Validate activity_level
