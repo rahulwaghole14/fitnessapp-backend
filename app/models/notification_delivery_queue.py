@@ -21,8 +21,8 @@ class NotificationDeliveryQueue(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     __table_args__ = (
-        # Optimized index for priority polling
-        Index('idx_delivery_queue_poll', 'status', 'priority', 'created_at'),
+        # Optimized index for priority polling including channel
+        Index('idx_delivery_queue_channel_status_priority_created', 'channel', 'status', 'priority', 'created_at'),
     )
 
     def __repr__(self):

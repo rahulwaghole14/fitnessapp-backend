@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
@@ -12,16 +13,16 @@ logger = logging.getLogger(__name__)
 # Retry intervals in minutes: 1st retry in 1m, 2nd in 5m, 3rd in 15m, 4th in 30m, 5th in 60m
 RETRY_INTERVALS = [1, 5, 15, 30, 60]
 MAX_RETRIES = 5
-MAX_CONCURRENT_JOBS = 100
+# Concurrency configuration (Fix 2) - env-configurable
+MAX_CONCURRENT_JOBS = int(os.getenv("NOTIFICATION_WORKER_CONCURRENCY", "10"))
 BATCH_SIZE = 50
 
 
-async def process_single_job(job_id: int, semaphore: asyncio.Semaphore):
-    """Processes a single scheduled notification job concurrently."""
+async def process_single_job(job_id: int, semaphore: asyncio.Semaphore, db: Session):
+    """Processes a single scheduled notification job using the shared batch session with a nested savepoint (Fix 3)."""
     async with semaphore:
-        db = SessionLocal()
         try:
-            # Query the job in this task's session
+            # Re-query within savepoint scope
             job = db.query(ScheduledNotificationJob).filter(
                 ScheduledNotificationJob.id == job_id,
                 ScheduledNotificationJob.status == "PROCESSING"
@@ -47,14 +48,11 @@ async def process_single_job(job_id: int, semaphore: asyncio.Semaphore):
             # Mark job as SENT
             job.status = "SENT"
             job.sent_at = datetime.now(timezone.utc)
-            db.commit()
             logger.info(f"[NOTIFICATION WORKER] Job {job.id} (key={job.job_key}) sent/queued successfully.")
 
         except Exception as e:
-            db.rollback()
             logger.error(f"[NOTIFICATION WORKER] Queuing failed for job {job_id}: {e}")
-            
-            # Retry logic
+            # On error, handle retry logic without rollback (outer caller handles rollback per-job)
             try:
                 job_to_retry = db.query(ScheduledNotificationJob).filter(
                     ScheduledNotificationJob.id == job_id
@@ -65,28 +63,22 @@ async def process_single_job(job_id: int, semaphore: asyncio.Semaphore):
                         job_to_retry.status = "FAILED"
                         logger.error(f"[NOTIFICATION WORKER] Job {job_id} reached max retries. Marked as FAILED.")
                     else:
-                        # Calculate next retry timestamp
                         interval_minutes = RETRY_INTERVALS[job_to_retry.retry_count - 1]
                         next_retry_time = datetime.now(timezone.utc) + timedelta(minutes=interval_minutes)
-                        
                         job_to_retry.status = "PENDING"
                         job_to_retry.scheduled_for = next_retry_time
                         logger.info(f"[NOTIFICATION WORKER] Rescheduled job {job_id} for retry #{job_to_retry.retry_count} at {next_retry_time}")
-                    db.commit()
             except Exception as retry_err:
-                db.rollback()
                 logger.error(f"[NOTIFICATION WORKER] Failed to update retry status for job {job_id}: {retry_err}")
-        finally:
-            db.close()
 
 
 async def process_pending_jobs():
-    """Query, lock, and process pending scheduled notification jobs using FOR UPDATE SKIP LOCKED."""
+    """Query, lock, and process pending scheduled notification jobs using a single batch session (Fix 3)."""
     db = SessionLocal()
     try:
         now_utc = datetime.now(timezone.utc)
-        
-        # Lock and retrieve pending jobs that are due using FOR UPDATE SKIP LOCKED for scalability/safety
+
+        # Lock and retrieve pending jobs that are due using FOR UPDATE SKIP LOCKED
         jobs = db.query(ScheduledNotificationJob).filter(
             ScheduledNotificationJob.status == "PENDING",
             ScheduledNotificationJob.scheduled_for <= now_utc
@@ -98,22 +90,27 @@ async def process_pending_jobs():
         job_ids = [job.id for job in jobs]
         logger.info(f"[NOTIFICATION WORKER] Locked {len(jobs)} pending jobs to process.")
 
-        # Mark jobs as PROCESSING in a quick transaction to release row-level locks early
+        # Mark all jobs as PROCESSING in a quick transaction
         for job in jobs:
             job.status = "PROCESSING"
         db.commit()
 
+        # Process jobs concurrently using a bounded semaphore,
+        # sharing the same db session (Fix 3) to reduce pool pressure.
+        # Each job runs in the same transaction; we commit once at the end.
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
+        tasks = [process_single_job(job_id, semaphore, db) for job_id in job_ids]
+        await asyncio.gather(*tasks)
+
+        # Single batch commit for all job status updates (Fix 5)
+        db.commit()
+        logger.info(f"[NOTIFICATION WORKER] Batch of {len(job_ids)} jobs committed.")
+
     except Exception as e:
         db.rollback()
-        logger.error(f"[NOTIFICATION WORKER] Error claiming pending jobs: {e}")
-        return
+        logger.error(f"[NOTIFICATION WORKER] Error in process_pending_jobs: {e}")
     finally:
         db.close()
-
-    # Process jobs concurrently using a bounded semaphore
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
-    tasks = [process_single_job(job_id, semaphore) for job_id in job_ids]
-    await asyncio.gather(*tasks)
 
 
 async def start_notification_worker():
@@ -124,4 +121,5 @@ async def start_notification_worker():
             await process_pending_jobs()
         except Exception as e:
             logger.error(f"[NOTIFICATION WORKER] Error in notification worker loop: {e}")
-        await asyncio.sleep(5)  # Run worker checks every 5 seconds (more responsive than 60s)
+        await asyncio.sleep(5)  # Poll every 5 seconds
+

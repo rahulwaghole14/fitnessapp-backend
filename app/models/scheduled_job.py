@@ -26,6 +26,7 @@ class ScheduledNotificationJob(Base):
     __table_args__ = (
         Index('idx_jobs_status_scheduled', 'status', 'scheduled_for'),
         Index('idx_jobs_user_scheduled', 'user_id', 'scheduled_for'),
+        Index('idx_jobs_user_status', 'user_id', 'status'),
     )
 
     def __repr__(self):

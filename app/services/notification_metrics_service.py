@@ -4,7 +4,7 @@ from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import extract
 
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, engine
 from app.models.scheduled_job import ScheduledNotificationJob
 from app.models.notification_delivery_queue import NotificationDeliveryQueue
 from app.models.push_retry_queue import PushRetryQueue
@@ -146,6 +146,51 @@ class NotificationMetricsService:
         except Exception as e:
             logger.error(f"Failed to fetch worker health stats: {e}")
             return {}
+
+    @staticmethod
+    def get_connection_pool_metrics() -> dict:
+        """
+        Returns live SQLAlchemy connection pool statistics.
+        Useful for detecting pool exhaustion before it becomes an outage.
+
+        Metrics returned:
+        - pool_size: configured maximum number of persistent connections
+        - checked_out: connections currently in use by active sessions
+        - overflow: extra connections opened beyond pool_size (up to max_overflow)
+        - idle: connections available for immediate checkout
+        - invalid: connections that have been invalidated (e.g. after DB restart)
+        """
+        try:
+            pool = engine.pool
+            checked_out = pool.checkedout()
+            overflow = pool.overflow()
+            pool_size = pool.size()
+            idle = pool_size - checked_out + max(0, -overflow)
+            return {
+                "pool_size": pool_size,
+                "checked_out": checked_out,
+                "overflow": overflow,
+                "idle": idle,
+                "utilization_pct": round(
+                    checked_out / max(pool_size + engine.dialect.max_overflow, 1) * 100, 1
+                )
+            }
+        except Exception as e:
+            logger.error(f"Failed to fetch connection pool metrics: {e}")
+            return {}
+
+    @staticmethod
+    def get_full_health_report(db: Session) -> dict:
+        """
+        Aggregates worker health stats AND live connection pool metrics
+        into a single response object for health-check endpoints.
+        """
+        worker_stats = NotificationMetricsService.get_worker_health_stats(db)
+        pool_metrics = NotificationMetricsService.get_connection_pool_metrics()
+        return {
+            **worker_stats,
+            "connection_pool": pool_metrics
+        }
 
 
 # Global service instance
