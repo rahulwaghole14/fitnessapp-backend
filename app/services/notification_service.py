@@ -225,6 +225,28 @@ class NotificationService:
         }
 
     @staticmethod
+    def get_notification_priority(notification_type: str) -> str:
+        high_types = {
+            "PAYMENT_FAILED",
+            "SUBSCRIPTION_EXPIRED",
+            "SUBSCRIPTION_EXPIRING",
+            "SUBSCRIPTION_PURCHASED"
+        }
+        low_types = {
+            "WELCOME",
+            "MEAL_REMINDER_BREAKFAST",
+            "MEAL_REMINDER_LUNCH",
+            "MEAL_REMINDER_DINNER",
+            "HYDRATION_REMINDER",
+            "INACTIVITY_REMINDER"
+        }
+        if notification_type in high_types:
+            return "HIGH"
+        elif notification_type in low_types:
+            return "LOW"
+        return "NORMAL"
+
+    @staticmethod
     async def create_notification(
         db: Session,
         user_id: int,
@@ -234,22 +256,26 @@ class NotificationService:
         priority: str = "normal",
         metadata: Optional[dict] = None,
         source_module: Optional[str] = None,
-        delivery_status: Optional[str] = "PENDING"
+        delivery_status: Optional[str] = "PENDING",
+        scheduled_for: Optional[datetime] = None
     ) -> Notification:
         """
         Centralized method to create user notifications, calculate unread count,
-        dispatch real-time WebSocket sync messages, and trigger push notifications.
+        and queue delivery tasks to the NotificationDeliveryQueue.
         """
+        # Resolve priority level (Phase 6)
+        db_priority = NotificationService.get_notification_priority(notification_type) if notification_type else priority.upper()
+
         # 1. Save notification to database
         notification = Notification(
             user_id=user_id,
             title=title,
             message=message,
             notification_type=notification_type,
-            priority=priority,
+            priority=db_priority.lower(),
             notification_metadata=metadata,
             source_module=source_module,
-            delivery_status=delivery_status,
+            delivery_status="PENDING",
             push_sent=False,
             websocket_sent=False,
             created_at=datetime.utcnow()
@@ -260,53 +286,24 @@ class NotificationService:
         
         logger.info(f"User notification created: id={notification.id}, user_id={user_id}, title='{title}'")
 
-        # 2. Calculate updated unread count
-        unread_count = db.query(Notification).filter(
-            Notification.user_id == user_id,
-            Notification.is_read == False,
-            Notification.is_deleted == False
-        ).count()
+        # 2. Add delivery tasks to queue (Phase 2 & Phase 10)
+        from app.models.notification_delivery_queue import NotificationDeliveryQueue
+        
+        # 2a. Queue WebSocket Delivery
+        ws_task = NotificationDeliveryQueue(
+            notification_id=notification.id,
+            user_id=user_id,
+            channel="WEBSOCKET",
+            status="PENDING",
+            priority=db_priority,
+            scheduled_for=scheduled_for,
+            created_at=datetime.utcnow()
+        )
+        db.add(ws_task)
 
-        # 3. Dispatch WebSocket event frames natively using async send to user devices
+        # 2b. Queue Push Delivery (Check static preferences first to save rows)
         try:
-            event_payload = {
-                "id": notification.id,
-                "user_id": notification.user_id,
-                "title": notification.title,
-                "message": notification.message,
-                "notification_type": notification.notification_type,
-                "priority": notification.priority,
-                "is_read": notification.is_read,
-                "is_deleted": notification.is_deleted,
-                "metadata": metadata,
-                "created_at": notification.created_at.isoformat() if notification.created_at else datetime.utcnow().isoformat(),
-                "read_at": notification.read_at.isoformat() if notification.read_at else None,
-                "unread_count": unread_count
-            }
-            await websocket_manager.send_to_all_user_devices(
-                user_id=user_id,
-                event="NEW_NOTIFICATION",
-                data=event_payload
-            )
-            # Mark WebSocket as sent
-            notification.websocket_sent = True
-            notification.websocket_sent_at = datetime.now(timezone.utc)
-            notification.delivery_status = "SENT"
-            db.commit()
-        except Exception as e:
-            logger.error(f"Failed to dispatch real-time WebSocket sync update: {e}")
-
-        # 4. Trigger push notification integration
-        try:
-            from app.services.push_service import push_service
             from app.models.notification_preference import NotificationPreference
-            from app.models.user import User
-            import os
-            import json
-            from datetime import timedelta
-            
-            # Fetch user and preferences
-            user = db.query(User).filter(User.id == user_id).first()
             pref = db.query(NotificationPreference).filter(
                 NotificationPreference.user_id == user_id
             ).first()
@@ -334,91 +331,25 @@ class NotificationService:
             category_enabled = getattr(pref, category_attribute, True) if (pref and category_attribute) else True
             
             if global_push and category_enabled:
-                high_priority_types = {
-                    "PAYMENT_FAILED",
-                    "SUBSCRIPTION_EXPIRED",
-                    "SUBSCRIPTION_EXPIRING",
-                    "SUBSCRIPTION_PURCHASED"
-                }
-                
-                # Check priority (Phase 5 Smart Push Routing)
-                priority_clean = priority.lower() if priority else "normal"
-                is_high_priority = priority_clean == "high" or notification_type in high_priority_types
-                is_ws_connected = len(websocket_manager.user_connections.get(user_id, [])) > 0
-                is_offline = not is_ws_connected
-                
-                # User activity awareness
-                threshold_minutes = int(os.getenv("PUSH_INACTIVITY_THRESHOLD_MINUTES", "20"))
-                inactivity_delta = timedelta(minutes=threshold_minutes)
-                now_utc = datetime.now(timezone.utc)
-                
-                is_inactive = True
-                if user and user.last_app_activity:
-                    last_act = user.last_app_activity
-                    if last_act.tzinfo is None:
-                        last_act = last_act.replace(tzinfo=timezone.utc)
-                    is_inactive = (now_utc - last_act) > inactivity_delta
-                
-                # Smart routing decisions
-                should_push = False
-                if is_high_priority:
-                    should_push = True
-                elif priority_clean == "normal":
-                    should_push = is_offline or is_inactive
-                elif priority_clean == "low":
-                    should_push = is_inactive
-                
-                if should_push:
-                    # Deep Link and Screen support (Phase 6)
-                    screen_map = {
-                        "MEAL_REMINDER_BREAKFAST": "meals",
-                        "MEAL_REMINDER_LUNCH": "meals",
-                        "MEAL_REMINDER_DINNER": "meals",
-                        "HYDRATION_REMINDER": "hydration",
-                        "SLEEP_ANALYSIS": "sleep",
-                        "SLEEP_GOAL_ACHIEVED": "sleep",
-                        "SLEEP_ACHIEVEMENT": "sleep",
-                        "SUBSCRIPTION_PURCHASED": "premium",
-                        "SUBSCRIPTION_EXPIRED": "premium",
-                        "SUBSCRIPTION_EXPIRING": "premium",
-                        "PAYMENT_FAILED": "premium"
-                    }
-                    
-                    screen = screen_map.get(notification_type)
-                    deep_link = f"fitnessapp://{screen}" if screen else None
-                    
-                    # Package structured FCM payload
-                    fcm_payload = {
-                        "notification_id": str(notification.id),
-                        "type": str(notification_type or ""),
-                        "deep_link": str(deep_link or ""),
-                        "screen": str(screen or ""),
-                        "metadata": json.dumps(metadata or {})
-                    }
-                    
-                    logger.info(f"[PUSH EVENT] notification_generated | notification_id={notification.id} | user_id={user_id} | type={notification_type}")
-                    
-                    push_success = await push_service.send_to_user(
-                        db=db,
-                        user_id=user_id,
-                        title=title,
-                        body=message,
-                        notification_id=notification.id,
-                        notification_type=notification_type,
-                        metadata=fcm_payload
-                    )
-                    if push_success:
-                        notification.push_sent = True
-                        notification.push_sent_at = datetime.now(timezone.utc)
-                        notification.delivery_status = "SENT"
-                        db.commit()
-                    logger.info(f"FCM push dispatched for user {user_id} (WS connected: {is_ws_connected}, Inactive: {is_inactive})")
-                else:
-                    logger.debug(f"Skipping FCM push for user {user_id} based on Smart Routing (WS connected: {is_ws_connected}, Inactive: {is_inactive}, Priority: {priority_clean})")
-            else:
-                logger.debug(f"Skipping FCM push for user {user_id} due to preferences (global={global_push}, category_enabled={category_enabled})")
+                push_task = NotificationDeliveryQueue(
+                    notification_id=notification.id,
+                    user_id=user_id,
+                    channel="PUSH",
+                    status="PENDING",
+                    priority=db_priority,
+                    scheduled_for=scheduled_for,
+                    created_at=datetime.utcnow()
+                )
+                db.add(push_task)
         except Exception as e:
-            logger.error(f"Failed to trigger FCM push notification: {e}")
+            logger.error(f"Failed to check preferences during push queueing: {e}")
+
+        try:
+            db.commit()
+            logger.info(f"Queued delivery tasks for Notification ID: {notification.id}")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to commit notification queue tasks: {e}")
 
         return notification
 

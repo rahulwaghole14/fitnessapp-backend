@@ -1,5 +1,6 @@
 import logging
 import json
+import asyncio
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from firebase_admin import messaging
@@ -127,6 +128,66 @@ class PushNotificationService:
             return "TRANSIENT_FAILURE"
 
     @staticmethod
+    async def _send_and_process_token(
+        db: Session,
+        user_id: int,
+        token_record: DeviceToken,
+        title: str,
+        body: str,
+        notification_id: int,
+        notification_type: Optional[str],
+        metadata: Optional[Dict[str, Any]],
+        now_utc: datetime
+    ) -> bool:
+        status = await PushNotificationService.send_push_notification(
+            db=db,
+            user_id=user_id,
+            device_token_id=token_record.id,
+            device_token=token_record.device_token,
+            title=title,
+            body=body,
+            metadata=metadata,
+            notification_id=notification_id,
+            notification_type=notification_type,
+            platform=token_record.platform
+        )
+        
+        if status == "SUCCESS":
+            token_record.last_push_success = now_utc
+            token_record.failure_count = 0
+            return True
+        elif status in ("UNREGISTERED", "SENDER_ID_MISMATCH", "INVALID_ARGUMENT"):
+            token_record.last_push_failure = now_utc
+            token_record.failure_count += 1
+            token_record.is_active = False
+            logger.info(f"FCM token {token_record.device_token[:15]}... invalid ({status}), marked inactive.")
+            return False
+        elif status == "FIREBASE_NOT_INITIALIZED":
+            logger.warning(f"Skipping token tracking update for {token_record.device_token[:15]}... because Firebase is not initialized.")
+            return False
+        else:  # TRANSIENT_FAILURE
+            token_record.last_push_failure = now_utc
+            token_record.failure_count += 1
+            if token_record.failure_count >= 3:
+                token_record.is_active = False
+                logger.info(f"FCM token {token_record.device_token[:15]}... failed {token_record.failure_count} times, marked inactive.")
+            
+            # Queue for retry (Phase 4 / Phase 9 retry queue integration)
+            try:
+                retry_job = PushRetryQueue(
+                    notification_id=notification_id,
+                    device_token_id=token_record.id,
+                    retry_count=0,
+                    next_retry_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+                    status="PENDING"
+                )
+                db.add(retry_job)
+                logger.info(f"[PUSH EVENT] push_queued | notification_id={notification_id} | user_id={user_id} | token_id={token_record.id} | type={notification_type}")
+            except Exception as re:
+                logger.error(f"Failed to queue push retry job: {re}")
+            return False
+
+    @staticmethod
     async def send_to_user(
         db: Session,
         user_id: int,
@@ -138,7 +199,7 @@ class PushNotificationService:
     ) -> bool:
         """
         Retrieves all active device tokens for the user, sends push notifications,
-        updates failure/success counts, and deactivates invalid/failing ones.
+        updates failure/success counts, and deactivates invalid/failing ones concurrently.
         Returns True if at least one push was successfully sent, False otherwise.
         """
         active_tokens = db.query(DeviceToken).filter(
@@ -150,59 +211,26 @@ class PushNotificationService:
             logger.debug(f"No active device tokens found for user {user_id}. Skipping push.")
             return False
 
-        any_success = False
         now_utc = datetime.now(timezone.utc)
         
-        for token_record in active_tokens:
-            status = await PushNotificationService.send_push_notification(
+        # Batch token processing (Phase 9 concurrent FCM sends)
+        tasks = [
+            PushNotificationService._send_and_process_token(
                 db=db,
                 user_id=user_id,
-                device_token_id=token_record.id,
-                device_token=token_record.device_token,
+                token_record=token_record,
                 title=title,
                 body=body,
-                metadata=metadata,
                 notification_id=notification_id,
                 notification_type=notification_type,
-                platform=token_record.platform
+                metadata=metadata,
+                now_utc=now_utc
             )
-            
-            if status == "SUCCESS":
-                token_record.last_push_success = now_utc
-                token_record.failure_count = 0
-                any_success = True
-            elif status in ("UNREGISTERED", "SENDER_ID_MISMATCH", "INVALID_ARGUMENT"):
-                token_record.last_push_failure = now_utc
-                token_record.failure_count += 1
-                token_record.is_active = False
-                logger.info(f"FCM token {token_record.device_token[:15]}... unregistered/invalid ({status}), marked inactive.")
-            elif status == "FIREBASE_NOT_INITIALIZED":
-                # Suppress token health updates if Firebase SDK is not configured
-                logger.warning(f"Skipping token tracking update for {token_record.device_token[:15]}... because Firebase is not initialized.")
-            else:  # TRANSIENT_FAILURE
-                token_record.last_push_failure = now_utc
-                token_record.failure_count += 1
-                
-                # Check threshold for token deactivation
-                if token_record.failure_count >= 3:
-                    token_record.is_active = False
-                    logger.info(f"FCM token {token_record.device_token[:15]}... failed {token_record.failure_count} times, marked inactive.")
-                
-                # Queue for retry (Phase 4)
-                try:
-                    retry_job = PushRetryQueue(
-                        notification_id=notification_id,
-                        device_token_id=token_record.id,
-                        retry_count=0,
-                        next_retry_at=datetime.now(timezone.utc) + timedelta(minutes=1),
-                        status="PENDING"
-                    )
-                    db.add(retry_job)
-                    db.commit()
-                    logger.info(f"[PUSH EVENT] push_queued | notification_id={notification_id} | user_id={user_id} | token_id={token_record.id} | type={notification_type}")
-                except Exception as re:
-                    db.rollback()
-                    logger.error(f"Failed to queue push retry job: {re}")
+            for token_record in active_tokens
+        ]
+        
+        results = await asyncio.gather(*tasks)
+        any_success = any(results)
 
         try:
             db.commit()

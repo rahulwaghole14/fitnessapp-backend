@@ -290,3 +290,38 @@ def get_unread_notifications_count(
             status_code=500,
             detail=f"Failed to get unread notifications count: {str(e)}"
         )
+
+
+def get_performance_metrics(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+) -> Dict[str, Any]:
+    """
+    Get notification performance metrics (average, p95, p99, and max delays).
+    """
+    try:
+        from app.services.notification_metrics_service import notification_metrics_service
+        return notification_metrics_service.get_performance_metrics(db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch performance metrics: {str(e)}"
+        )
+
+
+def get_worker_health_stats(
+    db: Session = Depends(get_db),
+    current_admin = Depends(get_current_admin)
+) -> Dict[str, Any]:
+    """
+    Get notification workers health and queue statistics.
+    """
+    try:
+        from app.services.notification_metrics_service import notification_metrics_service
+        return notification_metrics_service.get_worker_health_stats(db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch worker health statistics: {str(e)}"
+        )
+

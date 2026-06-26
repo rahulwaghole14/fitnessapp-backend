@@ -35,7 +35,7 @@ from .bmi_classification import (
 from .subscription_plans import create_plan, get_plans, get_plan_by_id, update_plan, delete_plan
 from .users import get_user_subscriptions_paginated, get_user_subscription_by_id, update_user_subscription
 from .activities import get_recent_activities
-from .notifications import get_notifications, get_notification_stats, get_activity_types, mark_notification_as_read, mark_all_notifications_as_read, get_unread_notifications_count
+from .notifications import get_notifications, get_notification_stats, get_activity_types, mark_notification_as_read, mark_all_notifications_as_read, get_unread_notifications_count, get_performance_metrics, get_worker_health_stats
 from .quotes import create_new_quote, list_all_quotes_for_admin, modify_existing_quote, remove_quote
 from .explore_activities import (
     create_explore_activity, get_explore_activities_paginated, get_explore_activity_by_id, 
@@ -133,6 +133,8 @@ admin_router.get("/notifications/activity-types")(get_activity_types)
 admin_router.put("/notifications/{notification_id}/mark-read")(mark_notification_as_read)
 admin_router.put("/notifications/mark-all-read")(mark_all_notifications_as_read)
 admin_router.get("/notifications/unread-count")(get_unread_notifications_count)
+admin_router.get("/notifications/performance-metrics")(get_performance_metrics)
+admin_router.get("/notifications/worker-health")(get_worker_health_stats)
 
 # Explore Activities Management Routes
 admin_router.post("/explore-activities", response_model=ExploreActivityResponse)(create_explore_activity)
