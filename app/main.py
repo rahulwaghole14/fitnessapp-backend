@@ -21,12 +21,21 @@ async def startup_event():
     from app.services.push_retry_worker import start_push_retry_worker
     from app.services.websocket_delivery_worker import start_websocket_delivery_worker
     from app.services.push_delivery_worker import start_push_delivery_worker
+    from app.services.recovery_worker import start_recovery_worker
+    
     asyncio.create_task(start_scheduler())
     asyncio.create_task(start_notification_worker())
     asyncio.create_task(start_daily_job_generator())
     asyncio.create_task(start_push_retry_worker())
     asyncio.create_task(start_websocket_delivery_worker())
     asyncio.create_task(start_push_delivery_worker())
+    asyncio.create_task(start_recovery_worker())
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    from app.core.leader_election import scheduler_leader_lock
+    scheduler_leader_lock.release_leader_lock()
 
 # Configure CORS based on environment
 import os

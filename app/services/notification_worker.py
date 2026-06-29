@@ -3,6 +3,7 @@ import asyncio
 import os
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.core.database import SessionLocal
 from app.models.scheduled_job import ScheduledNotificationJob
@@ -19,8 +20,10 @@ BATCH_SIZE = 50
 
 
 async def process_single_job(job_id: int, semaphore: asyncio.Semaphore, db: Session):
-    """Processes a single scheduled notification job using the shared batch session with a nested savepoint (Fix 3)."""
+    """Processes a single scheduled notification job using the shared batch session with a nested savepoint."""
     async with semaphore:
+        # Create a savepoint for this job execution
+        sp = db.begin_nested()
         try:
             # Re-query within savepoint scope
             job = db.query(ScheduledNotificationJob).filter(
@@ -29,31 +32,53 @@ async def process_single_job(job_id: int, semaphore: asyncio.Semaphore, db: Sess
             ).first()
 
             if not job:
+                sp.rollback()
                 return
 
-            # Trigger delivery through NotificationService (which queues websocket and push entries)
-            await notification_service.create_notification(
-                db=db,
-                user_id=job.user_id,
-                title=job.title,
-                message=job.message,
-                notification_type=job.notification_type,
-                priority="high" if job.notification_type in ["SUBSCRIPTION_EXPIRING", "SUBSCRIPTION_EXPIRED"] else "normal",
-                metadata=job.notification_metadata,
-                source_module="scheduled_jobs",
-                delivery_status="PENDING",
-                scheduled_for=job.scheduled_for
-            )
+            try:
+                # Trigger delivery through NotificationService (which queues websocket and push entries)
+                # Pass logical_event_id=job.job_key to enforce event level idempotency
+                await notification_service.create_notification(
+                    db=db,
+                    user_id=job.user_id,
+                    title=job.title,
+                    message=job.message,
+                    notification_type=job.notification_type,
+                    priority="high" if job.notification_type in ["SUBSCRIPTION_EXPIRING", "SUBSCRIPTION_EXPIRED"] else "normal",
+                    metadata=job.notification_metadata,
+                    source_module="scheduled_jobs",
+                    delivery_status="PENDING",
+                    scheduled_for=job.scheduled_for,
+                    logical_event_id=job.job_key
+                )
 
-            # Mark job as SENT
-            job.status = "SENT"
-            job.sent_at = datetime.now(timezone.utc)
-            logger.info(f"[NOTIFICATION WORKER] Job {job.id} (key={job.job_key}) sent/queued successfully.")
+                # Mark job as SENT
+                job.status = "SENT"
+                job.sent_at = datetime.now(timezone.utc)
+                logger.info(f"[NOTIFICATION WORKER] Job {job.id} (key={job.job_key}) sent/queued successfully.")
+            
+            except IntegrityError as ie:
+                # Handle unique constraint violations on logical_event_id or delivery queue duplicate
+                sp.rollback()
+                logger.warning(f"[NOTIFICATION WORKER] Duplicate notification blocked for job {job_id} (key={job.job_key}): {ie}. Marking job as SENT.")
+                
+                # Re-query and mark job status as SENT since we rolled back the savepoint
+                job_ref = db.query(ScheduledNotificationJob).filter(
+                    ScheduledNotificationJob.id == job_id
+                ).first()
+                if job_ref:
+                    job_ref.status = "SENT"
+                    job_ref.sent_at = datetime.now(timezone.utc)
+                    
+            except Exception as inner_err:
+                sp.rollback()
+                raise inner_err
 
         except Exception as e:
             logger.error(f"[NOTIFICATION WORKER] Queuing failed for job {job_id}: {e}")
-            # On error, handle retry logic without rollback (outer caller handles rollback per-job)
+            # On error, handle retry logic using a savepoint to protect transaction health
             try:
+                sp_retry = db.begin_nested()
                 job_to_retry = db.query(ScheduledNotificationJob).filter(
                     ScheduledNotificationJob.id == job_id
                 ).first()
@@ -73,7 +98,7 @@ async def process_single_job(job_id: int, semaphore: asyncio.Semaphore, db: Sess
 
 
 async def process_pending_jobs():
-    """Query, lock, and process pending scheduled notification jobs using a single batch session (Fix 3)."""
+    """Query, lock, and process pending scheduled notification jobs using a single batch session."""
     db = SessionLocal()
     try:
         now_utc = datetime.now(timezone.utc)
@@ -90,14 +115,14 @@ async def process_pending_jobs():
         job_ids = [job.id for job in jobs]
         logger.info(f"[NOTIFICATION WORKER] Locked {len(jobs)} pending jobs to process.")
 
-        # Mark all jobs as PROCESSING in a quick transaction
+        # Mark all jobs as PROCESSING and record start time in a quick transaction
         for job in jobs:
             job.status = "PROCESSING"
+            job.processing_started_at = now_utc
         db.commit()
 
         # Process jobs concurrently using a bounded semaphore,
-        # sharing the same db session (Fix 3) to reduce pool pressure.
-        # Each job runs in the same transaction; we commit once at the end.
+        # sharing the same db session to reduce pool pressure.
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
         tasks = [process_single_job(job_id, semaphore, db) for job_id in job_ids]
         await asyncio.gather(*tasks)

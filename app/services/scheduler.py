@@ -13,6 +13,7 @@ from app.models.sleep import SleepSession
 from app.models.user_activity_log import UserActivityLog
 from app.models.subscription import Subscription
 from app.services.notification_service import notification_service
+from app.core.leader_election import scheduler_leader_lock
 
 logger = logging.getLogger(__name__)
 
@@ -106,20 +107,34 @@ async def hydration_reminder_job():
 
 async def subscription_expiry_job():
     """Query subscriptions, flag expired ones, and warn users 7 days / 1 day before expiration."""
-    logger.info("[SCHEDULER] Running subscription_expiry_job - Deprecated (Replaced by Scheduled Jobs Worker)")
+    if not scheduler_leader_lock.is_leader:
+        logger.debug("[SCHEDULER] Not the leader process, skipping subscription_expiry_job.")
+        return
+
+    logger.info("[SCHEDULER] Running subscription_expiry_job...")
     db = SessionLocal()
     try:
-        # Check active subscriptions and mark expired status only
         from app.models.subscription import Subscription
         from datetime import date
         today = date.today()
-        active_subscriptions = db.query(Subscription).filter(Subscription.status == "active").all()
+        
+        # Check active subscriptions and mark expired status only with row-level locks
+        active_subscriptions = db.query(Subscription).filter(
+            Subscription.status == "active",
+            Subscription.end_date <= today
+        ).with_for_update(skip_locked=True).all()
+        
         for sub in active_subscriptions:
-            if sub.end_date <= today:
-                sub.status = "expired"
-                db.commit()
-                # Create the expired notification immediately (event-based fallback)
-                from app.services.notification_service import notification_service
+            # Re-verify status under lock
+            if sub.status != "active":
+                continue
+                
+            sub.status = "expired"
+            # Create the expired notification atomically in the same transaction
+            # Use logical_event_id to prevent duplicates on database level
+            logical_key = f"subscription_{sub.id}_expired_{sub.end_date.strftime('%Y_%m_%d')}"
+            try:
+                # Trigger expired notification creation (it flushes to session but does not commit)
                 await notification_service.create_notification(
                     db=db,
                     user_id=sub.user_id,
@@ -127,8 +142,15 @@ async def subscription_expiry_job():
                     message="Your premium subscription has expired.",
                     notification_type="SUBSCRIPTION_EXPIRED",
                     priority="high",
-                    metadata={"subscription_id": sub.id, "end_date": str(sub.end_date)}
+                    metadata={"subscription_id": sub.id, "end_date": str(sub.end_date)},
+                    logical_event_id=logical_key
                 )
+                db.commit()
+                logger.info(f"[SCHEDULER] Subscription {sub.id} marked expired and notification queued.")
+            except Exception as inner_e:
+                db.rollback()
+                logger.error(f"[SCHEDULER] Failed to process subscription {sub.id} expiry: {inner_e}")
+                
     except Exception as e:
         logger.error(f"[SCHEDULER] Error in subscription_expiry_job logic: {e}")
         db.rollback()
@@ -143,12 +165,15 @@ async def inactivity_reminder_job():
 
 
 async def start_scheduler():
-    """Main centralized scheduler loop (kept for backwards compatibility)."""
-    logger.info("[SCHEDULER] Starting deprecated centralized background loop...")
+    """Main centralized scheduler loop."""
+    logger.info("[SCHEDULER] Starting background scheduler loop...")
     while True:
         try:
-            await subscription_expiry_job()
+            # Try to acquire leader lock (does nothing if already held)
+            await scheduler_leader_lock.acquire_leader_lock()
+            
+            if scheduler_leader_lock.is_leader:
+                await subscription_expiry_job()
         except Exception as e:
-            logger.error(f"[SCHEDULER] Error during subscription expiry cleanup: {e}")
-        logger.info("[SCHEDULER] Job tick completed. Sleeping for 300 seconds...")
+            logger.error(f"[SCHEDULER] Error during scheduler execution: {e}")
         await asyncio.sleep(300)

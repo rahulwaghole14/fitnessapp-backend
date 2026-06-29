@@ -257,11 +257,13 @@ class NotificationService:
         metadata: Optional[dict] = None,
         source_module: Optional[str] = None,
         delivery_status: Optional[str] = "PENDING",
-        scheduled_for: Optional[datetime] = None
+        scheduled_for: Optional[datetime] = None,
+        logical_event_id: Optional[str] = None
     ) -> Notification:
         """
         Centralized method to create user notifications, calculate unread count,
         and queue delivery tasks to the NotificationDeliveryQueue.
+        Enforces atomic transaction boundary (caller is responsible for commit).
         """
         # Resolve priority level (Phase 6)
         db_priority = NotificationService.get_notification_priority(notification_type) if notification_type else priority.upper()
@@ -278,13 +280,13 @@ class NotificationService:
             delivery_status="PENDING",
             push_sent=False,
             websocket_sent=False,
+            logical_event_id=logical_event_id,
             created_at=datetime.utcnow()
         )
         db.add(notification)
-        db.commit()
-        db.refresh(notification)
+        db.flush()
         
-        logger.info(f"User notification created: id={notification.id}, user_id={user_id}, title='{title}'")
+        logger.info(f"User notification created in session: id={notification.id}, user_id={user_id}, title='{title}'")
 
         # 2. Add delivery tasks to queue (Phase 2 & Phase 10)
         from app.models.notification_delivery_queue import NotificationDeliveryQueue
@@ -344,12 +346,9 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to check preferences during push queueing: {e}")
 
-        try:
-            db.commit()
-            logger.info(f"Queued delivery tasks for Notification ID: {notification.id}")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Failed to commit notification queue tasks: {e}")
+        # Flush all added objects to check constraints (e.g. UniqueConstraint on uq_delivery_queue_notif_channel)
+        db.flush()
+        logger.info(f"Queued delivery tasks for Notification ID: {notification.id} in session.")
 
         return notification
 

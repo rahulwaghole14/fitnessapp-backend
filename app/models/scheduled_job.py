@@ -17,6 +17,7 @@ class ScheduledNotificationJob(Base):
     retry_count = Column(Integer, default=0, nullable=False)
     job_key = Column(String(255), unique=True, nullable=False)
     sent_at = Column(DateTime(timezone=True), nullable=True)
+    processing_started_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

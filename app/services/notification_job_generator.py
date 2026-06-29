@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.scheduled_job import ScheduledNotificationJob
 from app.models.subscription import Subscription
 from app.models.subscription_plans import Plan
+from app.core.leader_election import scheduler_leader_lock
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,12 @@ def get_user_tz(user: User):
 def create_job_safe(db: Session, user_id: int, notif_type: str, title: str, message: str, 
                     metadata: dict, scheduled_for_utc: datetime, job_key: str):
     """Safely insert a job avoiding duplicates through unique key constraint."""
+    # Check if the job timestamp is in the past, skip it if it is!
+    now_utc = datetime.now(timezone.utc)
+    if scheduled_for_utc <= now_utc:
+        logger.debug(f"[JOB GENERATOR] Skipping historical job {job_key} scheduled for past time: {scheduled_for_utc}")
+        return None
+
     # Check first to reduce unnecessary exceptions
     existing = db.query(ScheduledNotificationJob).filter(
         ScheduledNotificationJob.job_key == job_key
@@ -240,17 +247,21 @@ def reschedule_inactivity_reminder(db: Session, user_id: int):
 
 
 async def generate_daily_jobs():
-    """Scan all users and generate meal and hydration scheduled notification jobs for today and tomorrow."""
+    """Scan all users and generate meal and hydration scheduled notification jobs based on user local dates."""
     logger.info("[JOB GENERATOR] Starting daily job generation...")
     db = SessionLocal()
     try:
         users = db.query(User).all()
-        today = date.today()
-        tomorrow = today + timedelta(days=1)
         
         for user in users:
-            # Generate for both today and tomorrow to handle timezone overlaps properly
-            for target_date in [today, tomorrow]:
+            # Resolve user's local dates dynamically to ensure accurate timezone scheduling
+            user_tz = get_user_tz(user)
+            user_local_time = datetime.now(user_tz)
+            user_today = user_local_time.date()
+            user_tomorrow = user_today + timedelta(days=1)
+            
+            # Generate for both user's local today and tomorrow to handle timezone overlaps properly
+            for target_date in [user_today, user_tomorrow]:
                 generate_meal_jobs_for_user(db, user, target_date)
                 generate_hydration_jobs_for_user(db, user, target_date)
         
@@ -264,10 +275,13 @@ async def generate_daily_jobs():
 async def start_daily_job_generator():
     """Startup task to initialize and run daily scheduled job generation loop."""
     logger.info("[JOB GENERATOR] Starting daily job generator loop...")
-    # Run immediately on startup to catch up on any missing schedule records
-    await generate_daily_jobs()
-    
-    # Check hourly to dynamically schedule for new signups or timezone changes
     while True:
+        try:
+            # Try to acquire leader lock (does nothing if already held)
+            await scheduler_leader_lock.acquire_leader_lock()
+            
+            if scheduler_leader_lock.is_leader:
+                await generate_daily_jobs()
+        except Exception as e:
+            logger.error(f"[JOB GENERATOR] Error in daily job generator loop: {e}")
         await asyncio.sleep(3600)  # Check every hour
-        await generate_daily_jobs()

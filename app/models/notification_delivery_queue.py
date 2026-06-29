@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.sql import func
 from app.core.database import Base
 
@@ -23,6 +23,7 @@ class NotificationDeliveryQueue(Base):
     __table_args__ = (
         # Optimized index for priority polling including channel
         Index('idx_delivery_queue_channel_status_priority_created', 'channel', 'status', 'priority', 'created_at'),
+        UniqueConstraint('notification_id', 'channel', name='uq_delivery_queue_notif_channel'),
     )
 
     def __repr__(self):

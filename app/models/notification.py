@@ -16,6 +16,7 @@ class Notification(Base):
     is_read = Column(Boolean, default=False, nullable=False, index=True)
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)
     notification_metadata = Column("metadata", JSON, nullable=True)
+    logical_event_id = Column(String(255), unique=True, nullable=True, index=True)
     source_module = Column(String(100), nullable=True)
     delivery_status = Column(String(50), default="PENDING", nullable=True)
     push_sent = Column(Boolean, default=False, nullable=False)
