@@ -1,52 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
-from typing import List
 
 from app.core.database import get_db
-from app.core.auth_dependencies import get_current_user, get_current_user_id
+from app.core.auth_dependencies import get_current_user
 from app.models import User
-from app.models.bmi_classification import BMIClassification
-from app.models.meal import Meal
-from app.schemas.meal import MealResponse
+from app.schemas.meal import MealPlanResponse
+from app.services.meal_service import MealService
 
 router = APIRouter()
 
 
-def get_meals_by_user_bmi(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> List[MealResponse]:
+def get_meals_by_user_bmi(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> MealPlanResponse:
+    """Generate a calorie-targeted BMI-based daily meal plan for the current user."""
+    return MealService.generate_meal_plan(db, current_user)
 
-    # Determine BMI value to use
-    if current_user.bmi is None:
-        bmi_value = 21.75  # Middle of Normal range (18.5-25)
-    else:
-        bmi_value = current_user.bmi
-
-    # Find BMI category
-    bmi_category = db.query(BMIClassification).filter(
-        or_(
-            and_(BMIClassification.min_bmi <= bmi_value, BMIClassification.max_bmi >= bmi_value),
-            and_(BMIClassification.min_bmi.is_(None), BMIClassification.max_bmi >= bmi_value),
-            and_(BMIClassification.min_bmi <= bmi_value, BMIClassification.max_bmi.is_(None))
-        )
-    ).first()
-
-    if not bmi_category:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No BMI category found for the calculated BMI"
-        )
-
-    # Get first 5 meals per meal type for BMI category, ordered by creation date
-    meal_types = ['breakfast', 'lunch', 'dinner']
-    meals = []
-    
-    for meal_type in meal_types:
-        category_meals = db.query(Meal).filter(
-            Meal.bmi_category_id == bmi_category.id,
-            Meal.meal_type == meal_type
-        ).order_by(Meal.created_at.asc()).limit(5).all()
-        meals.extend(category_meals)
-
-    # Convert to response schema
-    meal_responses = [MealResponse.model_validate(meal) for meal in meals]
-    return meal_responses

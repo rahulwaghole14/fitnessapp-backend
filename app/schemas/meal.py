@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 class MealBase(BaseModel):
@@ -26,3 +26,22 @@ class MealResponse(MealBase):
 
 class MealWithCategory(MealResponse):
     bmi_category: Optional[dict] = None
+
+
+class MealPlanSection(BaseModel):
+    target_calories: int
+    actual_calories: int
+    meals: List[MealResponse]
+
+
+class MealPlanResponse(BaseModel):
+    bmi_category: str
+    daily_target_calories: int
+    breakfast: MealPlanSection
+    lunch: MealPlanSection
+    dinner: MealPlanSection
+    total_actual_calories: int
+
+    class Config:
+        from_attributes = True
+
