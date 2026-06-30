@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, date
 
 
 class NotificationResponse(BaseModel):
@@ -15,6 +15,9 @@ class NotificationResponse(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(None, validation_alias="notification_metadata", serialization_alias="metadata")
     created_at: datetime
     read_at: Optional[datetime] = None
+    scheduled_for: Optional[datetime] = None
+    scheduled_time: Optional[str] = None
+    scheduled_date: Optional[str] = None
 
     class Config:
         from_attributes = True

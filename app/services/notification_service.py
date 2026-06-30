@@ -268,6 +268,12 @@ class NotificationService:
         # Resolve priority level (Phase 6)
         db_priority = NotificationService.get_notification_priority(notification_type) if notification_type else priority.upper()
 
+        # Store the original scheduled time in metadata for presentation
+        if scheduled_for:
+            if not metadata:
+                metadata = {}
+            metadata["scheduled_for"] = scheduled_for.isoformat() if hasattr(scheduled_for, "isoformat") else str(scheduled_for)
+
         # 1. Save notification to database
         notification = Notification(
             user_id=user_id,
