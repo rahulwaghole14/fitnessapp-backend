@@ -145,7 +145,7 @@ admin_router.delete("/explore-activities/{activity_id}", response_model=dict)(de
 
 # Feedback Management Routes
 admin_router.get("/feedback", response_model=dict)(list_feedbacks)
-admin_router.patch("/feedback/{feedbackId}", response_model=FeedbackResponse)(update_feedback_status)
+admin_router.put("/feedback/{feedbackId}", response_model=FeedbackResponse)(update_feedback_status)
 admin_router.get("/feedback/analytics", response_model=FeedbackAnalyticsSummary)(get_feedback_analytics)
 
 
