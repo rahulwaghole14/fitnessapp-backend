@@ -15,20 +15,17 @@ app = FastAPI(title="Fitness App API")
 @app.on_event("startup")
 async def startup_event():
     import asyncio
-    from app.services.scheduler import start_scheduler
-    from app.services.notification_worker import start_notification_worker
-    from app.services.notification_job_generator import start_daily_job_generator
-    from app.services.push_retry_worker import start_push_retry_worker
     from app.services.websocket_delivery_worker import start_websocket_delivery_worker
-    from app.services.push_delivery_worker import start_push_delivery_worker
     from app.services.recovery_worker import start_recovery_worker
     
-    asyncio.create_task(start_scheduler())
-    asyncio.create_task(start_notification_worker())
-    asyncio.create_task(start_daily_job_generator())
-    asyncio.create_task(start_push_retry_worker())
+    # Disabled continuous database polling workers in favor of Cron-Job.org driven architecture
+    # asyncio.create_task(start_scheduler())
+    # asyncio.create_task(start_notification_worker())
+    # asyncio.create_task(start_daily_job_generator())
+    # asyncio.create_task(start_push_retry_worker())
+    # asyncio.create_task(start_push_delivery_worker())
+    
     asyncio.create_task(start_websocket_delivery_worker())
-    asyncio.create_task(start_push_delivery_worker())
     asyncio.create_task(start_recovery_worker())
 
 
@@ -69,8 +66,10 @@ app.add_middleware(
 app.mount("/media", StaticFiles(directory="app/media"), name="media")
 
 # Include API routes
+from app.api.internal.cron_notifications import router as internal_router
 app.include_router(api_router, prefix="/api")
 app.include_router(websocket_router, prefix="/ws")
+app.include_router(internal_router)
 
 @app.get("/")
 def root():

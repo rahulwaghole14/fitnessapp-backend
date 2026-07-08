@@ -18,6 +18,7 @@ class ScheduledNotificationJob(Base):
     job_key = Column(String(255), unique=True, nullable=False)
     sent_at = Column(DateTime(timezone=True), nullable=True)
     processing_started_at = Column(DateTime(timezone=True), nullable=True)
+    failure_reason = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
