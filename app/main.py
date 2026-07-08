@@ -15,16 +15,21 @@ app = FastAPI(title="Fitness App API")
 @app.on_event("startup")
 async def startup_event():
     import asyncio
+    from app.services.scheduler import start_scheduler
+    from app.services.notification_worker import start_notification_worker
+    from app.services.notification_job_generator import start_daily_job_generator
+    from app.services.push_retry_worker import start_push_retry_worker
     from app.services.websocket_delivery_worker import start_websocket_delivery_worker
+    from app.services.push_delivery_worker import start_push_delivery_worker
     from app.services.recovery_worker import start_recovery_worker
     
-    # Disabled continuous database polling workers in favor of Cron-Job.org driven architecture
-    # asyncio.create_task(start_scheduler())
-    # asyncio.create_task(start_notification_worker())
-    # asyncio.create_task(start_daily_job_generator())
-    # asyncio.create_task(start_push_retry_worker())
-    # asyncio.create_task(start_push_delivery_worker())
-    
+    # Hybrid architecture: continuous background loops run for real-time delivery when the server is awake.
+    # The Cron-Job.org endpoint acts as a heartbeat to wake the server up if it falls asleep.
+    asyncio.create_task(start_scheduler())
+    asyncio.create_task(start_notification_worker())
+    asyncio.create_task(start_daily_job_generator())
+    asyncio.create_task(start_push_retry_worker())
+    asyncio.create_task(start_push_delivery_worker())
     asyncio.create_task(start_websocket_delivery_worker())
     asyncio.create_task(start_recovery_worker())
 
