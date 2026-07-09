@@ -1,6 +1,8 @@
 import sys
 import os
 import asyncio
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 from datetime import datetime, timezone, timedelta
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -14,6 +16,7 @@ from app.models.push_retry_queue import PushRetryQueue
 from app.services.notification_service import notification_service
 from app.services.push_service import push_service
 from app.services.push_retry_worker import process_push_retry_jobs
+from app.services.push_delivery_worker import process_pending_push_deliveries
 
 
 async def test_push_upgrades():
@@ -86,6 +89,11 @@ async def test_push_upgrades():
             source_module="test_suite"
         )
         print(f"Created Notification ID: {notif.id}")
+        db.commit()
+
+        # Run delivery worker to process the queued push notification
+        print("Running push delivery worker to process queued notifications...")
+        await process_pending_push_deliveries()
 
         # 5. Check if PushDeliveryLog was created
         print("\n[TEST 4] Checking PushDeliveryLog for Invalid Token...")
@@ -126,6 +134,11 @@ async def test_push_upgrades():
             source_module="test_suite"
         )
         print(f"Created Notification ID: {notif_transient.id}")
+        db.commit()
+
+        # Run delivery worker to process the transient failure notification while fcm.send is mocked
+        print("Running push delivery worker to process transient failure notification...")
+        await process_pending_push_deliveries()
 
         # Restore original send function
         fcm.send = original_send

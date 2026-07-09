@@ -13,6 +13,7 @@ class UserRegisterSchema(BaseModel):
 class UserRegisterResponse(BaseModel):
     username: str
     email: EmailStr
+    created_at: datetime
     
 class UserBase(BaseModel):
     email: EmailStr
@@ -53,3 +54,10 @@ class UserResponsedash(BaseModel):
     email: str
     activity_level: Optional[str] = None
     gender: Optional[str] = None
+
+class UserAnalyticsResponse(BaseModel):
+    id: int
+    username: str
+    gender: Optional[str] = None
+    activity_level: Optional[str] = None
+    created_at: datetime

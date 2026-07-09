@@ -28,6 +28,7 @@ class User(Base):
     sleep_goal = Column(Integer, default=480, nullable=False)
     last_websocket_seen = Column(DateTime(timezone=True), nullable=True)
     last_app_activity = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationship with DailyActivity
     daily_activities = relationship("DailyActivity", back_populates="user")

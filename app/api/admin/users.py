@@ -45,7 +45,8 @@ async def register_user(user: UserRegisterSchema,
     new_user = User(
         username=user.username,
         email=user.email,
-        password=hash_password(user.password)
+        password=hash_password(user.password),
+        created_at=datetime.utcnow()
     )
 
     db.add(new_user)
@@ -64,6 +65,7 @@ async def register_user(user: UserRegisterSchema,
     return UserRegisterResponse(
         username=new_user.username,
         email=new_user.email,
+        created_at=new_user.created_at
     )
 
 
@@ -118,7 +120,7 @@ async def get_users_paginated(
             # profile_image=user.profile_image.replace("app/", "/",1) if user.profile_image else None,
             profile_image=user.profile_image if user.profile_image else None,
             is_verified=user.is_verified,
-            created_at=datetime.utcnow(),  # Use current time since User model doesn't have created_at
+            created_at=user.created_at,
             is_blocked=False
         )
         user_responses.append(user_response)
@@ -167,7 +169,7 @@ async def get_user_by_id(
         # profile_image=user.profile_image.replace("app/", "/",1) if user.profile_image else None,
         profile_image=user.profile_image if user.profile_image else None,
         is_verified=user.is_verified,
-        created_at=datetime.utcnow(),  # Use current time since User model doesn't have created_at
+        created_at=user.created_at,
         is_blocked=False
     )
 
@@ -247,7 +249,7 @@ async def update_user(
             activity_level=user.activity_level,
             profile_image=user.profile_image,  # Cloudinary URL is already public
             is_verified=user.is_verified,
-            created_at=datetime.utcnow(),  # Use current time since User model doesn't have created_at
+            created_at=user.created_at,
             is_blocked=False
         )
 

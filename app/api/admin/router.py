@@ -14,11 +14,11 @@ from .schemas import (
     PaginatedResponse, PaginationInfo, AdminRefreshTokenRequest, AdminLogoutRequest, AdminRefreshTokenResponse,
     Plan, PlanCreate, PlanUpdate, UserSubscriptionResponse,
     OverviewResponse, UserResponsedash, QuoteResponse, SuccessResponse,
-    ExploreActivityResponse
+    ExploreActivityResponse, UserAnalyticsResponse
 )
 from .auth import register_admin, login_admin, admin_forgot_password_send_otp, admin_forgot_password_verify_otp, admin_forgot_password_reset, admin_change_password, get_admin_profile, update_admin_profile
 from .auth_tokens import refresh_admin_access_token, logout_admin
-from .dashboard import get_overview, get_all_users
+from .dashboard import get_overview, get_all_users, get_users_analytics
 from .users import (
     register_user, get_users_paginated, get_user_by_id, update_user, delete_user
 )
@@ -72,6 +72,7 @@ admin_router.put("/profile")(update_admin_profile)
 # Dashboard Routes
 admin_router.get("/dashboard/overview", response_model=OverviewResponse)(get_overview)
 admin_router.get("/dashboard/users", response_model=list[UserResponsedash])(get_all_users)
+admin_router.get("/users/analytics", response_model=list[UserAnalyticsResponse])(get_users_analytics)
 
 # User Management Routes
 admin_router.post("/register-user", response_model=UserRegisterResponse)(register_user)

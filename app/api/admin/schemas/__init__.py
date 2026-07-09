@@ -13,7 +13,7 @@ from .auth import (
 
 from .user import (
     UserRegisterSchema, UserRegisterResponse, UserBase, UserResponse,
-    UserUpdate, UserBlockResponse, UserResponsedash
+    UserUpdate, UserBlockResponse, UserResponsedash, UserAnalyticsResponse
 )
 
 from .workout import (
@@ -62,7 +62,7 @@ __all__ = [
     
     # User schemas
     "UserRegisterSchema", "UserRegisterResponse", "UserBase", "UserResponse",
-    "UserUpdate", "UserBlockResponse", "UserResponsedash",
+    "UserUpdate", "UserBlockResponse", "UserResponsedash", "UserAnalyticsResponse",
     
     # Workout schemas
     "WorkoutBase", "WorkoutCreate", "WorkoutUpdate", "WorkoutResponse",

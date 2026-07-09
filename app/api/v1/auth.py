@@ -93,7 +93,8 @@ def register(user: RegisterSchema, db: Session = Depends(get_db)):
     new_user = User(
         username=user.username,
         email=user.email,
-        password=hash_password(user.password)
+        password=hash_password(user.password),
+        created_at=datetime.utcnow()
     )
 
     db.add(new_user)
@@ -141,6 +142,7 @@ def register(user: RegisterSchema, db: Session = Depends(get_db)):
             "user_id": new_user.id,
             "username": new_user.username,
             "email": new_user.email,
+            "created_at": new_user.created_at
         }
     }
 

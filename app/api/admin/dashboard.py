@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.database import get_db
 from app.api.admin.schemas import (
-    OverviewResponse
+    OverviewResponse, UserAnalyticsResponse
 )
 from app.api.admin.dependencies import get_current_admin
 from app.models.user import User
@@ -63,6 +63,31 @@ async def get_all_users(
             "email": user.email,
             "activity_level": user.activity_level,
             "gender": user.gender
+        }
+        for user in users
+    ]
+
+
+async def get_users_analytics(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_admin)
+):
+    """Get list of users with their basic analytics data."""
+    users = db.query(
+        User.id,
+        User.username,
+        User.gender,
+        User.activity_level,
+        User.created_at
+    ).order_by(User.created_at.desc()).all()
+    
+    return [
+        {
+            "id": user.id,
+            "username": user.username,
+            "gender": user.gender,
+            "activity_level": user.activity_level,
+            "created_at": user.created_at
         }
         for user in users
     ]
