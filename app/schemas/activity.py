@@ -88,3 +88,10 @@ class YearlyActivityResponse(BaseModel):
     total_calories: float
     total_active_minutes: float
     # created_at: str
+
+class ManualActivityRequest(BaseModel):
+    activity_date: date = Field(..., description="Activity date in YYYY-MM-DD format")
+    steps: int = Field(..., ge=0, description="Manual steps to add")
+    distance_km: float = Field(..., ge=0.0, description="Manual distance in kilometers")
+    calories: float = Field(..., ge=0.0, description="Manual calories burned")
+    active_minutes: float = Field(..., ge=0.0, description="Manual active minutes")

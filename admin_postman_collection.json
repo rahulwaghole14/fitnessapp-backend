@@ -1,0 +1,2898 @@
+{
+  "info": {
+    "_postman_id": "7bc38686-9b52-45e1-a9c8-983fc9612fdc",
+    "name": "Fitness App Admin API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Admin Authentication",
+      "item": [
+        {
+          "name": "Register Admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"admin_user\", \"email\": \"admin@example.com\", \"password\": \"securepassword123\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "var res = pm.response.json();",
+                  "if(res.access_token) pm.environment.set(\"admin_token\", res.access_token);",
+                  "if(res.refresh_token) pm.environment.set(\"refresh_token\", res.refresh_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"admin@example.com\", \"password\": \"securepassword123\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "var res = pm.response.json();",
+                  "if(res.access_token) pm.environment.set(\"admin_token\", res.access_token);",
+                  "if(res.refresh_token) pm.environment.set(\"refresh_token\", res.refresh_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/refresh-token",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refresh_token\": \"{{refresh_token}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refresh_token\": \"{{refresh_token}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password - Send OTP",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/auth/forgot-password/send",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"admin@example.com\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password - Verify OTP",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/auth/forgot-password/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"admin@example.com\", \"otp\": \"123456\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password - Reset",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/auth/forgot-password/reset",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"admin@example.com\", \"otp\": \"123456\", \"new_password\": \"newsecurepassword123\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/auth/change-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"old_password\": \"securepassword123\", \"new_password\": \"newsecurepassword123\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/profile",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"bio\": \"Administrator bio\", \"name\": \"Admin\", \"email\": \"admin@example.com\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Overview Stats",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/dashboard/overview"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users Summary",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/dashboard/users"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/register-user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"user_test\", \"email\": \"user@example.com\", \"password\": \"userpassword123\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Users",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/users?skip=0&limit=10&search=&is_verified=true&is_blocked=false"
+          },
+          "response": []
+        },
+        {
+          "name": "User Details",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/user/:user_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/update-user/:user_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"user@example.com\", \"gender\": \"male\", \"age\": 25, \"weight\": 70.0, \"height\": 175.0, \"bmi\": 22.8, \"weight_goal\": 68.0, \"activity_level\": \"active\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/user/:user_id"
+          },
+          "response": []
+        },
+        {
+          "name": "List User Subscriptions",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/user-subscriptions?skip=0&limit=10&search=&status=active"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Subscription Details",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/user-subscription/:subscription_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Subscription",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/update-user-subscription/:subscription_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"active\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Workout Management",
+      "item": [
+        {
+          "name": "Create Workout",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/workouts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"HIIT Workout\", \"description\": \"High Intensity Interval Training\", \"duration_minutes\": 30, \"calories_burned\": 300, \"difficulty_level\": \"intermediate\", \"category\": \"Cardio\", \"workout_type\": \"hiit\", \"workout_image_url\": \"http://example.com/hiit.jpg\", \"workout_video_url\": \"http://example.com/hiit.mp4\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Workouts",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/workouts?skip=0&limit=10&search="
+          },
+          "response": []
+        },
+        {
+          "name": "Workout Details",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/workout/:workout_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Workout",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/update-workout/:workout_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Advanced HIIT Workout\", \"duration_minutes\": 45, \"calories_burned\": 450}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Workout",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/workout/:workout_id"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Meal Management",
+      "item": [
+        {
+          "name": "Create Meal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/meals",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"bmi_category_id\": 1, \"meal_type\": \"lunch\", \"food_item\": \"Grilled Chicken Salad\", \"calories\": 350, \"description\": \"Healthy grilled chicken breast with salad greens\", \"meal_image\": \"http://example.com/salad.jpg\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Meals",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/meals?skip=0&limit=10&bmi_category_id="
+          },
+          "response": []
+        },
+        {
+          "name": "Meal Details",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/meal/:meal_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Meal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/update-meal/:meal_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"food_item\": \"Tuna Salad\", \"calories\": 300, \"meal_type\": \"lunch\", \"bmi_category_id\": 1, \"description\": \"Tuna salad description\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Meal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/meal/:meal_id"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "BMI Classification",
+      "item": [
+        {
+          "name": "Create BMI Classification",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/bmi-classifications",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"category_name\": \"Normal weight\", \"min_bmi\": 18.5, \"max_bmi\": 24.9}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List BMI Classifications",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/bmi-classifications?skip=0&limit=10"
+          },
+          "response": []
+        },
+        {
+          "name": "BMI Classification Details",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/bmi-classification/:bmi_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update BMI Classification",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/update-bmi-classification/:bmi_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"category_name\": \"Normal\", \"min_bmi\": 18.5, \"max_bmi\": 25.0}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete BMI Classification",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/bmi-classification/:bmi_id"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subscription Plans",
+      "item": [
+        {
+          "name": "Create Plan",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/plans",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Standard Plan\", \"description\": \"Access to regular workouts and meals\", \"price\": 19.99, \"duration_days\": 30, \"features\": [\"workouts\", \"meals\"], \"is_active\": true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Plans",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/plans"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plan Details",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/plan/:plan_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plan",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/update-plan/:plan_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Standard Plan Pro\", \"price\": 24.99}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Plan",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/delete-plan/:plan_id"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Quotes Management",
+      "item": [
+        {
+          "name": "Create Quote",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/quotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"text\": \"Health is wealth\", \"author\": \"Proverb\", \"category\": \"Inspiration\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Quotes",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/quotes"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Quote",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/quotes/:quote_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"text\": \"Health is greatest wealth\", \"author\": \"Proverb\", \"category\": \"Inspiration\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Quote",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/quotes/:quote_id"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Activity Logs",
+      "item": [
+        {
+          "name": "Get Recent Activities",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/recent-activities?skip=0&limit=10"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notification Management",
+      "item": [
+        {
+          "name": "List Notifications",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications?skip=0&limit=10&activity_type="
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification Stats",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications/stats"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification Activity Types",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications/activity-types"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification Read",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications/:notification_id/mark-read"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications/mark-all-read"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unread Notifications Count",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications/unread-count"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification Performance Metrics",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications/performance-metrics"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Worker Health Stats",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/notifications/worker-health"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Explore Activities",
+      "item": [
+        {
+          "name": "Create Explore Activity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/explore-activities",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"activity_name\": \"Running\", \"description\": \"Outdoor aerobic running session\", \"duration\": \"30 mins\", \"activity_type\": \"Aerobic\", \"image\": \"http://example.com/run.png\", \"video\": \"http://example.com/run.mp4\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Explore Activities",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/explore-activities?skip=0&limit=10&search="
+          },
+          "response": []
+        },
+        {
+          "name": "Get Explore Activity Details",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/explore-activities/:activity_id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Explore Activity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/explore-activities/:activity_id",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"activity_name\": \"Jogging\", \"duration\": \"45 mins\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Explore Activity",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/explore-activities/:activity_id"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Feedback Management",
+      "item": [
+        {
+          "name": "List Feedbacks",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/feedback?skip=0&limit=10&status=&category="
+          },
+          "response": []
+        },
+        {
+          "name": "Update Feedback Status",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/feedback/:feedbackId",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\": \"REVIEWED\", \"admin_notes\": \"Followed up with user feedback\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Feedback Analytics",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\n\"current_timestamp\",\nnew Date().toISOString()\n);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is successful\", function () {",
+                  "pm.expect(pm.response.code).to.be.oneOf([200,201,202,204]);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time under 5 seconds\", function () {",
+                  "pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/feedback/analytics"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

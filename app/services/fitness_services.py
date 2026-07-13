@@ -72,7 +72,10 @@ class FitnessActivityService:
 
     def get_monthly_daily_records(self, user_id: int, year: int, month: int) -> list:
         result = self.db.execute(text("""
-                                      SELECT steps, distance_km, calories, active_minutes
+                                      SELECT (steps + manual_steps) AS steps,
+                                             (distance_km + manual_distance_km) AS distance_km,
+                                             (calories + manual_calories) AS calories,
+                                             (active_minutes + manual_active_minutes) AS active_minutes
                                       FROM daily_activities
                                       WHERE user_id = :user_id
                                         AND EXTRACT(YEAR FROM date) = :year
@@ -450,3 +453,45 @@ class FitnessActivityService:
         """), {"user_id": user_id})
         
         return result.fetchall()
+
+    def upsert_manual_activity(self, user_id: int, activity_date: date, steps: int,
+                               distance_km: float, calories: float, active_minutes: float) -> int:
+        """Increment manual activity fields or create new row if none exists for the user on that date"""
+        if self.check_daily_record_exists(user_id, activity_date):
+            result = self.db.execute(text("""
+                UPDATE daily_activities
+                SET manual_steps          = manual_steps + :steps,
+                    manual_distance_km    = manual_distance_km + :distance_km,
+                    manual_calories       = manual_calories + :calories,
+                    manual_active_minutes = manual_active_minutes + :active_minutes,
+                    updated_at            = NOW()
+                WHERE user_id = :user_id
+                  AND date = :activity_date
+                RETURNING id
+            """), {
+                "user_id": user_id,
+                "activity_date": activity_date,
+                "steps": steps,
+                "distance_km": distance_km,
+                "calories": calories,
+                "active_minutes": active_minutes
+            })
+        else:
+            result = self.db.execute(text("""
+                INSERT INTO daily_activities
+                (user_id, date, steps, distance_km, calories, active_minutes,
+                 manual_steps, manual_distance_km, manual_calories, manual_active_minutes, created_at, updated_at)
+                VALUES (:user_id, :activity_date, 0, 0.0, 0.0, 0.0,
+                        :steps, :distance_km, :calories, :active_minutes, NOW(), NOW())
+                RETURNING id
+            """), {
+                "user_id": user_id,
+                "activity_date": activity_date,
+                "steps": steps,
+                "distance_km": distance_km,
+                "calories": calories,
+                "active_minutes": active_minutes
+            })
+        
+        self.db.commit()
+        return result.scalar()

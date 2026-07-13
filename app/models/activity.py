@@ -13,6 +13,10 @@ class DailyActivity(Base):
     distance_km = Column(Float, default=0.0)
     calories = Column(Float, default=0.0)
     active_minutes = Column(Float, default=0.0)
+    manual_steps = Column(Integer, default=0)
+    manual_distance_km = Column(Float, default=0.0)
+    manual_calories = Column(Float, default=0.0)
+    manual_active_minutes = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

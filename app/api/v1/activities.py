@@ -14,7 +14,7 @@ from app.models.activity import DailyActivity
 from app.schemas.activity import (
     DailyActivityRequest, DailyActivityResponse, WeeklyAnalyticsResponse,
     WeeklyActivityData, MonthlySummaryResponse, UserDailyActivityResponse, MonthlyActivityResponse,
-    YearlyActivityResponse
+    YearlyActivityResponse, ManualActivityRequest
 )
 
 
@@ -136,19 +136,19 @@ def store_daily_activity(
         #Get the stored daily record for response
         daily_record = db.execute(text("""
                                        SELECT id,
-                                              user_id, date, steps, distance_km, calories, active_minutes, created_at
+                                              user_id, date, steps, distance_km, calories, active_minutes, created_at,
+                                              manual_steps, manual_distance_km, manual_calories, manual_active_minutes
                                        FROM daily_activities
                                        WHERE id = :record_id
                                        """), {"record_id": daily_record_id}).fetchone()
 
         daily_response = DailyActivityResponse(
             id=daily_record[0],
-            user_id=daily_record[1],
             activity_date=daily_record[2],
-            steps=daily_record[3],
-            distance_km=daily_record[4],
-            calories=daily_record[5],
-            active_minutes=daily_record[6],
+            steps=daily_record[3] + daily_record[8],
+            distance_km=daily_record[4] + daily_record[9],
+            calories=daily_record[5] + daily_record[10],
+            active_minutes=daily_record[6] + daily_record[11],
             created_at=daily_record[7].isoformat() if daily_record[7] else ""
         )
 
@@ -213,10 +213,10 @@ def get_user_daily_activities(current_user_id: int = Depends(get_current_user_id
                 id=activity.id,
                 user_id=activity.user_id,
                 date=activity.date,
-                steps=activity.steps,
-                distance_km=activity.distance_km,
-                calories=activity.calories,
-                active_minutes=activity.active_minutes,
+                steps=activity.steps + activity.manual_steps,
+                distance_km=activity.distance_km + activity.manual_distance_km,
+                calories=activity.calories + activity.manual_calories,
+                active_minutes=activity.active_minutes + activity.manual_active_minutes,
                 # created_at=activity.created_at.isoformat(),
                 # updated_at=activity.updated_at.isoformat()
             )
@@ -277,10 +277,10 @@ def get_weekly_analytics(
         ]
 
         # Calculate totals for the week
-        total_steps = sum(activity.steps for activity in week_activities)
-        total_calories = sum(activity.calories for activity in week_activities)
-        total_distance = sum(activity.distance_km for activity in week_activities)
-        total_active_minutes = sum(activity.active_minutes for activity in week_activities)
+        total_steps = sum(activity.steps + activity.manual_steps for activity in week_activities)
+        total_calories = sum(activity.calories + activity.manual_calories for activity in week_activities)
+        total_distance = sum(activity.distance_km + activity.manual_distance_km for activity in week_activities)
+        total_active_minutes = sum(activity.active_minutes + activity.manual_active_minutes for activity in week_activities)
 
         weekly_data.append(WeeklyActivityData(
             week_number=week_num,
@@ -372,6 +372,140 @@ def get_user_yearly_activities(
             ))
 
         return yearly_activities
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+def store_manual_activity(
+        data: ManualActivityRequest,
+        current_user_id: int = Depends(get_current_user_id),
+        db: Session = Depends(get_db)
+):
+    # Validate input data
+    if data.steps < 0 or data.distance_km < 0 or data.calories < 0 or data.active_minutes < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="All numeric values must be non-negative"
+        )
+
+    # Initialize fitness service
+    fitness_service = FitnessActivityService(db)
+
+    try:
+        # Store/Update manual activity (UPSERT logic)
+        record_id = fitness_service.upsert_manual_activity(
+            current_user_id, data.activity_date, data.steps,
+            data.distance_km, data.calories, data.active_minutes
+        )
+
+        # Reschedule inactivity reminder job
+        from app.services.notification_job_generator import reschedule_inactivity_reminder
+        reschedule_inactivity_reminder(db, current_user_id)
+
+        # Check if monthly summarization should be triggered
+        should_summarize = fitness_service.should_trigger_monthly_summary(
+            current_user_id, data.activity_date
+        )
+
+        monthly_summary_data = None
+        daily_records_deleted = 0
+        old_monthly_records_deleted = 0
+
+        if should_summarize:
+            if hasattr(fitness_service, '_month_to_aggregate_year'):
+                prev_year = fitness_service._month_to_aggregate_year
+                prev_month = fitness_service._month_to_aggregate_month
+
+                # Aggregate and store monthly summary
+                monthly_summary_data = fitness_service.aggregate_and_store_monthly_summary(
+                    current_user_id, prev_year, prev_month
+                )
+
+                if monthly_summary_data:
+                    daily_records_deleted = monthly_summary_data['daily_records_deleted']
+                    old_monthly_records_deleted = monthly_summary_data['old_monthly_records_deleted']
+
+        # Check if yearly summarization should be triggered
+        yearly_summary_data = None
+        monthly_records_deleted = 0
+        
+        current_year = data.activity_date.year
+        current_month = data.activity_date.month
+        previous_year = current_year - 1
+        
+        has_monthly_records = fitness_service.check_yearly_monthly_records_exist(current_user_id, previous_year)
+        
+        if has_monthly_records and not fitness_service.check_yearly_summary_exists(current_user_id, previous_year):
+            q1_months_count = fitness_service.check_partial_q1_months_count(current_user_id, current_year)
+            
+            if q1_months_count == 3:
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    current_user_id, previous_year
+                )
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+            elif q1_months_count == 0 and current_month >= 4:
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    current_user_id, previous_year
+                )
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+            elif q1_months_count == 1 and current_month >= 4:
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    current_user_id, previous_year
+                )
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+            elif q1_months_count == 2 and current_month >= 4:
+                yearly_summary_data = fitness_service.aggregate_and_store_yearly_summary(
+                    current_user_id, previous_year
+                )
+                if yearly_summary_data:
+                    monthly_records_deleted = yearly_summary_data['monthly_records_deleted']
+
+        # Prepare response message
+        message_parts = []
+
+        if should_summarize and monthly_summary_data:
+            message_parts.append(
+                f"Previous month ({prev_year}-{prev_month:02d}) summarized: {monthly_summary_data['total_steps']} steps")
+            message_parts.append(f"Daily records deleted: {daily_records_deleted}")
+            message_parts.append(f"Old monthly records deleted: {old_monthly_records_deleted}")
+
+        if yearly_summary_data:
+            trigger_reason = ""
+            if q1_months_count == 3:
+                trigger_reason = " (Q1 complete)"
+            elif q1_months_count == 0:
+                trigger_reason = " (Q1 skipped - first post-Q1 activity)"
+            elif q1_months_count == 1:
+                trigger_reason = " (Q1 partial - 1 month present)"
+            elif q1_months_count == 2:
+                trigger_reason = " (Q1 partial - 2 months present)"
+            
+            message_parts.append(f"Year {previous_year} aggregated{trigger_reason}: {yearly_summary_data['total_steps']} steps")
+            message_parts.append(f"Monthly records deleted: {monthly_records_deleted}")
+
+        if not message_parts:
+            message = "Manual activity stored successfully."
+        else:
+            message = "Manual activity stored successfully. " + " ".join(message_parts) + "."
+
+        return MonthlySummaryResponse(
+            message=message,
+            daily_activity_stored=True,
+            monthly_summary_created=should_summarize and monthly_summary_data is not None,
+            daily_records_deleted=daily_records_deleted,
+            old_monthly_records_deleted=old_monthly_records_deleted,
+            monthly_data=monthly_summary_data,
+            yearly_summary_created=yearly_summary_data is not None,
+            yearly_data=yearly_summary_data
+        )
 
     except Exception as e:
         db.rollback()

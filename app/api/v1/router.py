@@ -8,7 +8,8 @@ from .auth import (
 from .auth_tokens import refresh_token, logout, logout_all
 
 from .activities import (store_daily_activity, get_weekly_analytics,
-                         get_user_daily_activities, get_user_monthly_activities,get_user_yearly_activities)
+                         get_user_daily_activities, get_user_monthly_activities,get_user_yearly_activities,
+                         store_manual_activity)
 from .meals import get_meals_by_user_bmi
 from .workouts import get_workouts_for_user
 from .subscription import (get_all_plans, get_plan_id, create_subscription_order, handle_razorpay_webhook,
@@ -89,6 +90,7 @@ router.post("/auth/logout-all")(logout_all)
 
 #Activity Endpoints
 router.post("/activity/daily")(store_daily_activity)  # New fitness endpoint with auto-summarization
+router.put("/activity/daily/manual")(store_manual_activity)
 router.get("/activity/weekly")(get_weekly_analytics)  # get the user data monthly record week wise
 router.get("/activity/daily")(get_user_daily_activities)  # get user data of all month daywise
 router.get("/activity/monthly")(get_user_monthly_activities)  # New monthly activities endpoint  and get the user data monthly
