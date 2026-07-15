@@ -38,6 +38,8 @@ class UserDailyActivityResponse(BaseModel):
     user_id: int
     date: date
     steps: int
+    sensor: Optional[int] = None
+    manual: Optional[int] = None
     distance_km: float
     calories: float
     active_minutes: float
